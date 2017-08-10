@@ -18,19 +18,27 @@ dfEQ_2012 <- subset(dfEQ, year==2012)
 # 4. Creates a box plot of forecast_prob per result
 # 5. Saves the box plot as a .png file
 
-win <- subset(dfEQ_2012, result=="Win")
-lose <- subset(dfEQ_2012, result == "Loss")
+win_2012 <- subset(dfEQ_2012, result=="Win")
+lose_2012 <- subset(dfEQ_2012, result == "Loss")
 
-png("boxplot.png")
+win <- subset(dfEQ, result=="Win")
+lose <- subset(dfEQ, result == "Loss")
+
+png("boxplot_all.png")
 boxplot(win$forecast_prob, lose$forecast_prob, names=c("Win", "Loss"), ylab="Forecast Probability")
+dev.off()
+
+png("boxplot_2012.png")
+boxplot(win_2012$forecast_prob, lose_2012$forecast_prob, names=c("Win", "Loss"), ylab="Forecast Probability")
 dev.off()
 
 # 6. Saves the modified data.frame to a .rData file
 
-save(dfEQ_2012, file="dfEQ.rData")
+save(dfEQ, file="dfEQ.rData")
+save(dfEQ_2012, file="dfEQ_2012.rData")
 
 # Checking that the png can be loaded
 
 library(imager)
 im <- load.image("boxplot.png")
-show(im)
+plot(im)
