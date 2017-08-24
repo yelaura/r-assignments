@@ -1,3 +1,5 @@
+# Update 2
+
 # name of the directories of the files
 
 setwd('C:\\Users\\lye\\OneDrive\\Documents\\GitHub\\r-assignments')
@@ -30,15 +32,17 @@ for (item in df_b$fname){
   wave <- readWave(paste('.\\Final Project\\',item, sep=""))
   set_b <- rbind(set_b,wave@left)
 }
-  
-# 
-# Wobj <- readWave('.\\Final Project\\set_a\\artifact__201105040918.wav')
-# Wobj
-# play(Wobj)
-# 
-# Wobj@left
-# 
-# fft(Wobj@left)
-# 
-# plot(Re(fft(Wobj@left)))
-# plot(Wobj@left, pch=16)
+
+# Update 3 : Technically Correct data
+
+# replace empty cells with NA in df_a, df_b, df_a_timing
+# set_a and set_b do not need this treatment because they are numerical vectors/matrices already
+
+levels(df_a$label) <- c(NA, "artifact", "extrahls", "murmur", "normal")
+levels(df_b$label) <- c(NA, "extrastole", "murmur", "normal")
+levels(df_b$sublabel) <- c(NA, "noisy murmur", "noisy normal")
+
+# Coerce numeric columns into strings
+
+df_a_timing$cycle <- as.numeric(df_a_timing$cycle)
+df_a_timing$location <- as.numeric(df_a_timing$location)
