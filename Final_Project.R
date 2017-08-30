@@ -103,4 +103,110 @@ dev.off()
 
 # Using Rowmeans does not show definitive separation
 
+plot(sort(rowMeans(murmur*murmur)), main="Sorted rowMeans of Squares")
+points(sort(rowMeans(artifacts*artifacts)), col="blue")
+points(sort(rowMeans(normal*normal)), col="green")
+points(sort(rowMeans(extrahls*extrahls)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
 
+dev.copy(jpeg, filename="Sorted_rowMeans_Squares.png")
+dev.off()
+
+# Taking the square of the vectors and then using rowmeans does not show definitive separation
+
+# Finding the index of the max location
+
+plot(sort(apply(murmur, 1, which.max)), main="Index of maximum value")
+points(sort(apply(artifacts, 1, which.max)), col="blue")
+points(sort(apply(normal, 1, which.max)), col="green")
+points(sort(apply(extrahls, 1, which.max)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
+
+dev.copy(jpeg, filename="Sorted_max_index.png")
+dev.off()
+
+# Finding the index of the min location
+
+plot(sort(apply(murmur, 1, which.min)), main="Index of minimum value")
+points(sort(apply(artifacts, 1, which.min)), col="blue")
+points(sort(apply(normal, 1, which.min)), col="green")
+points(sort(apply(extrahls, 1, which.min)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
+
+dev.copy(jpeg, filename="Sorted_min_index.png")
+dev.off()
+
+#Finding the value of the max
+
+plot(sort(apply(murmur, 1, max)), main="Maximum value")
+points(sort(apply(artifacts, 1, max)), col="blue")
+points(sort(apply(normal, 1, max)), col="green")
+points(sort(apply(extrahls, 1, max)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
+
+dev.copy(jpeg, filename="Sorted_MAX.png")
+dev.off()
+
+#Finding the value of the min
+
+plot(sort(apply(murmur, 1, min)), main="minimum value")
+points(sort(apply(artifacts, 1, min)), col="blue")
+points(sort(apply(normal, 1, min)), col="green")
+points(sort(apply(extrahls, 1, min)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
+
+dev.copy(jpeg, filename="Sorted_min.png")
+dev.off()
+
+#Finding the value of the mode
+
+mode <- function(x) {
+  ux <- unique(x)
+  ux[which.max(tabulate(match(x, ux)))]
+}
+
+plot(sort(apply(murmur, 1, mode)), main="mode value")
+points(sort(apply(artifacts, 1, mode)), col="blue")
+points(sort(apply(normal, 1, mode)), col="green")
+points(sort(apply(extrahls, 1, mode)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
+
+dev.copy(jpeg, filename="Sorted_mode.png")
+dev.off()
+
+#Finding the value of the median
+
+plot(sort(apply(murmur, 1, median)), main="median value")
+points(sort(apply(artifacts, 1, median)), col="blue")
+points(sort(apply(normal, 1, median)), col="green")
+points(sort(apply(extrahls, 1, median)), col="red")
+legend(x="topleft", 
+       legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
+       col=c('black', 'blue', 'green', 'red'), 
+       pch=1)
+
+dev.copy(jpeg, filename="Sorted_median.png")
+dev.off()
+
+# Plot to see if correlations exist
+
+par(mfrow=c(6,6))
+plot()
