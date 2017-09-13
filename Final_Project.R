@@ -61,14 +61,6 @@ num_n <- sum(all_n)
 normal <- set_a[all_n]
 normal <- matrix(normal, nrow=num_n)
 
-# Take deviation from the mean
-
-# mean_set_a <- colMeans(set_a)
-# artifacts <- artifacts-mean_set_a
-# extrahls <- extrahls-mean_set_a
-# murmur <- murmur-mean_set_a
-# normal <- normal-mean_set_a
-
 # Plot raw data
 
 matplot(t(murmur), type = "l")
@@ -451,3 +443,187 @@ legend(x="topleft",
 
 dev.copy(jpeg, filename="PCA_3d_colorcoded.jpg")
 dev.off()
+
+# Update 6: Probability distribution / hypothesis testing
+
+# Checking if characteristics of each data set are normally distributed using Shapiro-Wilk test
+# Will check for each category and also all labeled points
+
+# All labeled points
+all_labelled <- all_a + all_n + all_e + all_m
+all_labelled <- as.logical(all_labelled)
+num_l <- sum(all_labelled)
+labelled <- set_a[all_labelled]
+labelled <- matrix(labelled, nrow=num_l)
+
+# Check
+
+toTest <- list(labelled, normal, murmur, extrahls, artifacts)
+
+print("p-value for rowMeans(x) are:")
+for (x in toTest){
+  print(shapiro.test(rowMeans(x)))
+  hist(rowMeans(x))
+  Sys.sleep(5)
+}
+# p-value for all rowMeans(x) are <0.05 which means data is normally distributed
+# hist graph for all the normally distributed data
+
+
+print("p-value for rowMeans(x*x) are:")
+for (x in toTest){
+  print(shapiro.test(rowMeans(x*x))$p.value)
+  hist(rowMeans(x*x))
+  Sys.sleep(5)
+}
+# Once again, p-value for all rowMeans(x*x) are <0.05 which means data is normally distributed
+
+print("p-value for apply(x,1,which.min) are:")
+for (x in toTest){
+  print(shapiro.test(apply(x,1,which.min))$p.value)
+  hist(apply(x,1,which.min))
+  Sys.sleep(5)
+}
+# normal and murmur datasets do not have index of min normally distributed, but the others do (labelled, extrahls, artifacts)
+
+print("p-value for apply(x,1,which.max) are:")
+for (x in toTest){
+  print(shapiro.test(apply(x,1,which.max))$p.value)
+  hist(apply(x,1,which.max))
+  Sys.sleep(5)
+}
+# normal, murmur & extrahls datasets do not have index of max normally distributed but the others do
+
+print("p-value for apply(x,1,min) are:")
+for (x in toTest){
+  print(shapiro.test(apply(x,1,min))$p.value)
+  hist(apply(x,1,min))
+  Sys.sleep(5)
+}
+# all p-values are <0.05 therefore all the min values are normally distributed
+
+print("p-value for apply(x,1,max) are:")
+for (x in toTest){
+  print(shapiro.test(apply(x,1,max))$p.value)
+  hist(apply(x,1,max))
+  Sys.sleep(5)
+}
+# all p-values are <0.05 therefore all the max values are normally distributed
+
+# More hypothesis testing
+
+# Check if characteristics are dependent using chi-squared tests
+
+# Check characteristics for labelled dataset
+
+chisq.test(rowMeans(labelled), rowMeans(labelled*labelled), correct=FALSE)
+chisq.test(rowMeans(labelled), apply(labelled, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(labelled), apply(labelled, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(labelled), apply(labelled, 1, min), correct=FALSE)
+chisq.test(rowMeans(labelled), apply(labelled, 1, max), correct=FALSE)
+
+chisq.test(rowMeans(labelled*labelled), apply(labelled, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(labelled*labelled), apply(labelled, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(labelled*labelled), apply(labelled, 1, min), correct=FALSE)
+chisq.test(rowMeans(labelled*labelled), apply(labelled, 1, max), correct=FALSE)
+
+chisq.test(apply(labelled, 1, which.min), apply(labelled, 1, which.max), correct=FALSE) #p-value = 0.08
+chisq.test(apply(labelled, 1, which.min), apply(labelled, 1, min), correct=FALSE)
+chisq.test(apply(labelled, 1, which.min), apply(labelled, 1, max), correct=FALSE)
+
+chisq.test(apply(labelled, 1, which.max), apply(labelled, 1, min), correct=FALSE)
+chisq.test(apply(labelled, 1, which.max), apply(labelled, 1, max), correct=FALSE)
+
+chisq.test(apply(labelled, 1, min), apply(labelled, 1, max), correct=FALSE) #p-value = 0.08
+
+# Check characteristics for normal dataset
+
+chisq.test(rowMeans(normal), rowMeans(normal*normal), correct=FALSE)
+chisq.test(rowMeans(normal), apply(normal, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(normal), apply(normal, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(normal), apply(normal, 1, min), correct=FALSE)
+chisq.test(rowMeans(normal), apply(normal, 1, max), correct=FALSE)
+
+chisq.test(rowMeans(normal*normal), apply(normal, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(normal*normal), apply(normal, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(normal*normal), apply(normal, 1, min), correct=FALSE)
+chisq.test(rowMeans(normal*normal), apply(normal, 1, max), correct=FALSE)
+
+chisq.test(apply(normal, 1, which.min), apply(normal, 1, which.max), correct=FALSE) 
+chisq.test(apply(normal, 1, which.min), apply(normal, 1, min), correct=FALSE)
+chisq.test(apply(normal, 1, which.min), apply(normal, 1, max), correct=FALSE)
+
+chisq.test(apply(normal, 1, which.max), apply(normal, 1, min), correct=FALSE)
+chisq.test(apply(normal, 1, which.max), apply(normal, 1, max), correct=FALSE)
+
+chisq.test(apply(normal, 1, min), apply(normal, 1, max), correct=FALSE)
+#X-squared = 930, df = 900, p-value = 0.2373 consistently
+
+# Check characteristics for murmur dataset
+
+chisq.test(rowMeans(murmur), rowMeans(murmur*murmur), correct=FALSE)
+chisq.test(rowMeans(murmur), apply(murmur, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(murmur), apply(murmur, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(murmur), apply(murmur, 1, min), correct=FALSE)
+chisq.test(rowMeans(murmur), apply(murmur, 1, max), correct=FALSE)
+
+chisq.test(rowMeans(murmur*murmur), apply(murmur, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(murmur*murmur), apply(murmur, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(murmur*murmur), apply(murmur, 1, min), correct=FALSE)
+chisq.test(rowMeans(murmur*murmur), apply(murmur, 1, max), correct=FALSE)
+
+chisq.test(apply(murmur, 1, which.min), apply(murmur, 1, which.max), correct=FALSE) 
+chisq.test(apply(murmur, 1, which.min), apply(murmur, 1, min), correct=FALSE)
+chisq.test(apply(murmur, 1, which.min), apply(murmur, 1, max), correct=FALSE)
+
+chisq.test(apply(murmur, 1, which.max), apply(murmur, 1, min), correct=FALSE)
+chisq.test(apply(murmur, 1, which.max), apply(murmur, 1, max), correct=FALSE)
+
+chisq.test(apply(murmur, 1, min), apply(murmur, 1, max), correct=FALSE)
+# X-squared = 1122, df = 1089, p-value = 0.2375 consistently
+
+# Check characteristics for extrahls dataset
+
+chisq.test(rowMeans(extrahls), rowMeans(extrahls*extrahls), correct=FALSE)
+chisq.test(rowMeans(extrahls), apply(extrahls, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(extrahls), apply(extrahls, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(extrahls), apply(extrahls, 1, min), correct=FALSE)
+chisq.test(rowMeans(extrahls), apply(extrahls, 1, max), correct=FALSE)
+
+chisq.test(rowMeans(extrahls*extrahls), apply(extrahls, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(extrahls*extrahls), apply(extrahls, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(extrahls*extrahls), apply(extrahls, 1, min), correct=FALSE)
+chisq.test(rowMeans(extrahls*extrahls), apply(extrahls, 1, max), correct=FALSE)
+
+chisq.test(apply(extrahls, 1, which.min), apply(extrahls, 1, which.max), correct=FALSE) 
+chisq.test(apply(extrahls, 1, which.min), apply(extrahls, 1, min), correct=FALSE)
+chisq.test(apply(extrahls, 1, which.min), apply(extrahls, 1, max), correct=FALSE)
+
+chisq.test(apply(extrahls, 1, which.max), apply(extrahls, 1, min), correct=FALSE)
+chisq.test(apply(extrahls, 1, which.max), apply(extrahls, 1, max), correct=FALSE)
+
+chisq.test(apply(extrahls, 1, min), apply(extrahls, 1, max), correct=FALSE)
+# X-squared = 342, df = 3224, p-value = 0.2356 consistently
+
+# Check characteristics for artifacts dataset
+
+chisq.test(rowMeans(artifacts), rowMeans(artifacts*artifacts), correct=FALSE)
+chisq.test(rowMeans(artifacts), apply(artifacts, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(artifacts), apply(artifacts, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(artifacts), apply(artifacts, 1, min), correct=FALSE)
+chisq.test(rowMeans(artifacts), apply(artifacts, 1, max), correct=FALSE)
+
+chisq.test(rowMeans(artifacts*artifacts), apply(artifacts, 1, which.min), correct=FALSE)
+chisq.test(rowMeans(artifacts*artifacts), apply(artifacts, 1, which.max), correct=FALSE)
+chisq.test(rowMeans(artifacts*artifacts), apply(artifacts, 1, min), correct=FALSE)
+chisq.test(rowMeans(artifacts*artifacts), apply(artifacts, 1, max), correct=FALSE)
+
+chisq.test(apply(artifacts, 1, which.min), apply(artifacts, 1, which.max), correct=FALSE) 
+chisq.test(apply(artifacts, 1, which.min), apply(artifacts, 1, min), correct=FALSE)
+chisq.test(apply(artifacts, 1, which.min), apply(artifacts, 1, max), correct=FALSE)
+
+chisq.test(apply(artifacts, 1, which.max), apply(artifacts, 1, min), correct=FALSE)
+chisq.test(apply(artifacts, 1, which.max), apply(artifacts, 1, max), correct=FALSE)
+
+chisq.test(apply(artifacts, 1, min), apply(artifacts, 1, max), correct=FALSE) # p-value = 0.08
+# X-squared = 1520, df = 1444, p-value = 0.24 for the most part 
