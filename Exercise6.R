@@ -22,7 +22,7 @@ qqline(fit$residuals)
 sum(fit$residuals)/length(fit$residuals)
 
 # 4. Perform a Shapiro-Wilk test for normality. What is the conclusion?
-# Answer: p-value is >0.05 so we fail to reject the null hypothesis which means that we can conclude that the mean is 0.
+# Answer: p-value is >0.05 so we fail to reject the null hypothesis which means that we can conclude that the data is normally distributed.
 
 shapiro.test(fit$residuals)
 
