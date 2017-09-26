@@ -25,6 +25,8 @@ for (item in df_a$fname){
   set_a <- rbind(set_a,wave@left)
 }
 
+set_a <- as.data.frame(set_a)
+
 # Update 3 : Technically Correct data
 
 # replace empty cells with NA in df_a, df_b, df_a_timing
@@ -41,25 +43,11 @@ df_a_timing$location <- as.numeric(df_a_timing$location)
 
 # Separate out sound data from each class
 
-all_a <- df_a$label[1:124] == "artifact"
-num_a <- sum(all_a)
-artifacts <- set_a[all_a]
-artifacts <- matrix(artifacts, nrow=num_a)
-
-all_e <- df_a$label[1:124] == "extrahls"
-num_e <- sum(all_e)
-extrahls <- set_a[all_e]
-extrahls <- matrix(extrahls, nrow=num_e)
-
-all_m <- df_a$label[1:124] == "murmur"
-num_m <- sum(all_m)
-murmur <- set_a[all_m]
-murmur <- matrix(murmur, nrow=num_m)
-
-all_n <- df_a$label[1:124] == "normal"
-num_n <- sum(all_n)
-normal <- set_a[all_n]
-normal <- matrix(normal, nrow=num_n)
+artifacts <- set_a[df_a$label=="artifact",]
+extrahls <- set_a[df_a$label=="extrahls",]
+murmur <- set_a[df_a$label=="murmur",]
+normal <- set_a[df_a$label=="normal",]
+labelled <- set_a[df_a$label != "",]
 
 # Plot raw data
 
@@ -449,13 +437,6 @@ dev.off()
 # Checking if characteristics of each data set are normally distributed using Shapiro-Wilk test
 # Will check for each category and also all labeled points
 
-# All labeled points
-all_labelled <- all_a + all_n + all_e + all_m
-all_labelled <- as.logical(all_labelled)
-num_l <- sum(all_labelled)
-labelled <- set_a[all_labelled]
-labelled <- matrix(labelled, nrow=num_l)
-
 # Check
 
 toTest <- list(labelled, normal, murmur, extrahls, artifacts)
@@ -627,3 +608,117 @@ chisq.test(apply(artifacts, 1, which.max), apply(artifacts, 1, max), correct=FAL
 
 chisq.test(apply(artifacts, 1, min), apply(artifacts, 1, max), correct=FALSE) # p-value = 0.08
 # X-squared = 1520, df = 1444, p-value = 0.24 for the most part 
+
+# Update 7: Reflection
+
+library(caret)  # The main package 
+library(e1071)  # A helper package caret depends on
+library(randomForest)  # A helper package caret depends on
+
+# Since implementing caret functions are timing out with the raw data, we can implement machine learning with
+# a subset of the characteristics of the data (mean, min, etc)
+mean <- as.numeric(rowMeans(labelled))
+chars <- as.data.frame(chars)
+
+chars$means_squared <- as.numeric(rowMeans(labelled)*rowMeans(labelled))
+chars$max <- as.numeric(apply(labelled, 1, max))
+chars$min <- as.numeric(apply(labelled, 1, min))
+chars$which_max <- as.numeric(apply(labelled,1,which.max))
+chars$which_min <- as.numeric(apply(labelled,1,which.min))
+
+# Add label column to chars dataframe
+
+with_labels <- chars
+with_labels$label <- as.factor(df_a$label[1:124])
+
+training_id <- createDataPartition(with_labels$label, p=0.90, list=FALSE)
+# This says return back 90% of the element IDs contained in iris$Species.
+# You could also acheive this with sample.int
+
+# Since that returns element ids, we can use that to subset our data set
+training <- with_labels[training_id,]   
+# use the remaining 10% of the data for testing later on
+testing <- with_labels[-training_id,]    #removes training_id
+
+training <- droplevels(training)
+testing <- droplevels(testing)
+
+
+# caret provides a straightforward way to apply these methods to your
+# training set with the train function. It accepts the formula notation,
+# and you can use the format like:
+# dependent ~ . 
+# to mean you want all of the other columns to be independent variables
+# for the learning. Then you give the data.frame you are taking these
+# columns from, and then specify the method name - matching that long list
+# we saw above. 
+
+# LDA
+lda_fit <- train(label~., data=training, method="lda")
+# CART
+cart_fit <- train(label~., data=training, method="rpart")
+# RF
+rf_fit <- train(label~., data=training, method="rf")
+# kNN
+knn_fit <- train(label~., data=training, method="knn")
+# SVM
+svm_fit <- train(label~., data=training, method="svmRadial")
+
+#random Ferns
+rferns_fit <- train(label~., data=training, method="rFerns")
+#adaboost
+#ada_fit <- train(label~., data=training, method="adaboost")
+#oblique random forest
+#obRF_fit <- train(label~., data=training, method="ORFsvm")
+#parallel RF
+paraRF_fit <- train(label~., data=training, method="parRF")
+#tan (tree augmented naive bayes)
+#tan_fit <- train(label~., data=training, method="tan")
+#wsrf
+wsrf_fit <- train(label~., data=training, method="wsrf")
+#cforest
+cforest_fit <- train(label~., data=training, method="cforest")
+#ranger
+ranger_fit <- train(label~., data=training, method="ranger")
+
+#rborist
+#rborist_fit <- train(label~., data=training, method="Rborist")
+#extra trees
+#require(extraTrees)
+#xtree_fit <- train(label~., data=training, method="extraTrees")
+#rfRules
+#rfRules_fit <- train(label~., data=training, method="rfRules")
+#rrf
+rrf_fit <- train(label~., data=training, method="RRF")
+
+#gbm
+gbm_fit <- train(label~., data=training, method="gbm")
+
+
+# Relative test, i.e. for comparing
+# the performance between alternative models. 
+results <- resamples(list(lda=lda_fit, 
+                          cart=cart_fit, 
+                          rf=rf_fit,
+                          knn=knn_fit, 
+                          svm=svm_fit))
+
+results <- resamples(list(rferns=rferns_fit, 
+                          rf=rf_fit,
+                          parallel=paraRF_fit,
+                          wsrf=wsrf_fit,
+                          cforest=cforest_fit,
+                          ranger=ranger_fit,
+                          rrf=rrf_fit,
+                          gbm=gbm_fit))
+
+
+# We can check out the comparison numerically or visually:
+dotplot(results)
+
+pred <- predict(lda_fit, testing)
+confusionMatrix(pred, testing$label)
+
+# Another approach: fit the data into time series model and then cluster
+
+ts_model <- apply(labelled,1,ts)
