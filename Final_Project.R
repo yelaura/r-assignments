@@ -2,11 +2,9 @@
 
 # name of the directories of the files
 
-setwd('C:\\Users\\lye\\OneDrive\\Documents\\GitHub\\r-assignments')
+setwd('C:\\Users\\lye\\OneDrive\\My Documents\\GitHub\\r-assignments')
 
-files <- c('.\\Final Project\\set_a.csv',
-           '.\\Final Project\\set_a_timing.csv')
-
+files <- c("C:\\Users\\lye\\Documents\\GitHub\\r-assignments\\Final Project\\set_a.csv")
 # read all the csvs
 
 df_a <- read.csv(files[1])
@@ -21,7 +19,7 @@ library(tuneR)
 set_a <- c()
 
 for (item in df_a$fname){
-  wave <- readWave(paste('.\\Final Project\\',item, sep=""))
+  wave <- readWave(paste('C:\\Users\\lye\\Documents\\GitHub\\r-assignments\\Final Project\\',item, sep=""))
   set_a <- rbind(set_a,wave@left)
 }
 
@@ -615,24 +613,19 @@ library(caret)  # The main package
 library(e1071)  # A helper package caret depends on
 library(randomForest)  # A helper package caret depends on
 
-# Since implementing caret functions are timing out with the raw data, we can implement machine learning with
-# a subset of the characteristics of the data (mean, min, etc)
-mean <- as.numeric(rowMeans(labelled))
-chars <- as.data.frame(chars)
+# To begin, we want to split our data into two subsets: one for 
+# training, and one for testing. Since this is a common step
+# in supervised learning, the caret package provides a function
+# to do so. 
 
-chars$means_squared <- as.numeric(rowMeans(labelled)*rowMeans(labelled))
-chars$max <- as.numeric(apply(labelled, 1, max))
-chars$min <- as.numeric(apply(labelled, 1, min))
-chars$which_max <- as.numeric(apply(labelled,1,which.max))
-chars$which_min <- as.numeric(apply(labelled,1,which.min))
+# Add label column to labelled dataframe
 
-# Add label column to chars dataframe
-
-with_labels <- chars
+with_labels <- as.data.frame(labelled)
+with_labels[, 1:396900] <- sapply(with_labels[,1:396900], as.numeric)
 with_labels$label <- as.factor(df_a$label[1:124])
 
 training_id <- createDataPartition(with_labels$label, p=0.90, list=FALSE)
-# This says return back 90% of the element IDs contained in iris$Species.
+# This says return back 90% of the element IDs.
 # You could also acheive this with sample.int
 
 # Since that returns element ids, we can use that to subset our data set
@@ -642,8 +635,6 @@ testing <- with_labels[-training_id,]    #removes training_id
 
 training <- droplevels(training)
 testing <- droplevels(testing)
-
-
 # caret provides a straightforward way to apply these methods to your
 # training set with the train function. It accepts the formula notation,
 # and you can use the format like:
@@ -655,47 +646,24 @@ testing <- droplevels(testing)
 
 # LDA
 lda_fit <- train(label~., data=training, method="lda")
+
 # CART
 cart_fit <- train(label~., data=training, method="rpart")
+
 # RF
 rf_fit <- train(label~., data=training, method="rf")
+
 # kNN
 knn_fit <- train(label~., data=training, method="knn")
+
 # SVM
 svm_fit <- train(label~., data=training, method="svmRadial")
 
-#random Ferns
-rferns_fit <- train(label~., data=training, method="rFerns")
-#adaboost
-#ada_fit <- train(label~., data=training, method="adaboost")
-#oblique random forest
-#obRF_fit <- train(label~., data=training, method="ORFsvm")
-#parallel RF
-paraRF_fit <- train(label~., data=training, method="parRF")
-#tan (tree augmented naive bayes)
-#tan_fit <- train(label~., data=training, method="tan")
-#wsrf
-wsrf_fit <- train(label~., data=training, method="wsrf")
-#cforest
-cforest_fit <- train(label~., data=training, method="cforest")
-#ranger
-ranger_fit <- train(label~., data=training, method="ranger")
-
-#rborist
-#rborist_fit <- train(label~., data=training, method="Rborist")
-#extra trees
-#require(extraTrees)
-#xtree_fit <- train(label~., data=training, method="extraTrees")
-#rfRules
-#rfRules_fit <- train(label~., data=training, method="rfRules")
-#rrf
-rrf_fit <- train(label~., data=training, method="RRF")
-
-#gbm
-gbm_fit <- train(label~., data=training, method="gbm")
+#kmeans
 
 
-# Relative test, i.e. for comparing
+# This is doing some internal cross-validation to see how well
+# each method did. This is a relative test, i.e. for comparing
 # the performance between alternative models. 
 results <- resamples(list(lda=lda_fit, 
                           cart=cart_fit, 
@@ -703,22 +671,133 @@ results <- resamples(list(lda=lda_fit,
                           knn=knn_fit, 
                           svm=svm_fit))
 
-results <- resamples(list(rferns=rferns_fit, 
-                          rf=rf_fit,
-                          parallel=paraRF_fit,
-                          wsrf=wsrf_fit,
-                          cforest=cforest_fit,
-                          ranger=ranger_fit,
-                          rrf=rrf_fit,
-                          gbm=gbm_fit))
-
-
 # We can check out the comparison numerically or visually:
+summary(results)
 dotplot(results)
 
+# In this example, LDA looks the best. Let's go ahead and predict
+# the species of the testing data set
 pred <- predict(lda_fit, testing)
-confusionMatrix(pred, testing$label)
+# We can use a confusion matrix to see how well the prediction did:
+confusionMatrix(pred, testing$Species)
+# Accuracy was 100%! (or will be nearly, there is slight differences 
+# when randomly samples) 
 
-# Another approach: fit the data into time series model and then cluster
+##################### START TS MODEL #############################################
 
-ts_model <- apply(labelled,1,ts)
+# Step 1: apply ts to all rows
+ts_model <- t(apply(labelled,1,ts))
+
+# Step 2: PCA decomposition to n dimensions
+#conduct PCA
+PCA_ts <- prcomp(ts_model)
+#select number of components
+freq <- data.frame()
+for (n in c(2,3,4,5,10,15,20,25,50,100)){
+  new_ts <- PCA_ts$x[,1:n]
+  cluster <- kmeans(new_ts,4)
+  freq <- rbind(freq, as.data.frame(table(cluster$cluster))$Freq)
+}
+names(freq) = 1:4
+freq$PC <- c(2,3,4,5,10,15,20,25,50,100)
+freq <- subset(freq, select=c(5,1:4))
+
+
+### for evaluating accuracy of random Forest ###
+acc <- data.frame()
+for (n in seq(from=2,to=100, by=5)){
+  new_ts <- PCA_ts$x[,1:n]
+  with_labels <- as.data.frame(new_ts)
+  with_labels$label <- as.factor(df_a$label[1:124])
+  
+  # Split samples: test/training
+  training_id <- createDataPartition(with_labels$label, p=0.90, list=FALSE)
+  
+  # Since that returns element ids, we can use that to subset our data set
+  training <- with_labels[training_id,]   
+  # use the remaining 10% of the data for testing later on
+  testing <- with_labels[-training_id,]    #removes training_id
+  
+  training <- droplevels(training)
+  testing <- droplevels(testing)
+  
+  rf_fit <- train(label~., data=training, method="rf")
+  
+  pred <- predict(rf_fit, testing)
+  CM <- confusionMatrix(pred, testing$label)
+  
+  acc <- rbind (acc, CM$overall[1])
+}
+
+plot(c(2:68), acc$X0.454545454545455,
+     type="l",
+     ylab="Accuracy", 
+     xlab="No. of Principal Components",
+     main="Accuracy vs PCs for Random Forest")
+
+n <- 100
+new_ts <- PCA_ts$x[,1:n]
+
+#kmeans
+cluster <- kmeans(new_ts,4)
+
+table(cluster$cluster)
+
+# Step 3: start ML
+
+with_labels <- as.data.frame(new_ts)
+with_labels$label <- as.factor(df_a$label[1:124])
+
+# Split samples: test/training
+training_id <- createDataPartition(with_labels$label, p=0.90, list=FALSE)
+
+# Since that returns element ids, we can use that to subset our data set
+training <- with_labels[training_id,]   
+# use the remaining 10% of the data for testing later on
+testing <- with_labels[-training_id,]    #removes training_id
+
+training <- droplevels(training)
+testing <- droplevels(testing)
+# caret provides a straightforward way to apply these methods to your
+# training set with the train function. It accepts the formula notation,
+# and you can use the format like:
+# dependent ~ . 
+# to mean you want all of the other columns to be independent variables
+# for the learning. Then you give the data.frame you are taking these
+# columns from, and then specify the method name - matching that long list
+# we saw above. 
+
+# LDA
+lda_fit <- train(label~., data=training, method="lda")
+
+# CART
+cart_fit <- train(label~., data=training, method="rpart")
+
+# RF
+rf_fit <- train(label~., data=training, method="rf")
+
+# kNN
+knn_fit <- train(label~., data=training, method="knn")
+
+# SVM
+svm_fit <- train(label~., data=training, method="svmRadial")
+
+# bayes - something's wrong
+bn_fit <- train(label~., data=training, method="naive_bayes")
+
+#neural network
+nn_fit <- train(label~., data=training, method="nnet")
+
+# This is doing some internal cross-validation to see how well
+# each method did. This is a relative test, i.e. for comparing
+# the performance between alternative models. 
+results <- resamples(list(lda=lda_fit, 
+                          cart=cart_fit, 
+                          rf=rf_fit,
+                          knn=knn_fit, 
+                          svm=svm_fit,
+                          bn=bn_fit,
+                          nn=nn_fit))
+
+# We can check out the comparison numerically or visually:
+dotplot(results, main=paste("PC=", n, sep=""))
