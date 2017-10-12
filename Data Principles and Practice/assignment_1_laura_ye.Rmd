@@ -1,0 +1,35 @@
+---  
+title: "Assignment 1"
+author: "YOUR FIRST AND LAST NAME GOES HERE"  
+date: "October 11, 2017"  
+output: 
+  html_document:  
+    toc: yes  
+
+---  
+email address: your_address@yourdomain.com
+  
+***
+Instructions: answer the questions below,  Do not use the R interpreter or the Internet during the quiz  
+
+Use only base R code in your answers , no use of packages unless specified.  No use of for (or any other type of) loops on any questions.
+
+(additional instructions and/or comments)
+
+
+# Problem 1  
+  
+Given a 10 element numeric vector v, give an R statement that adds the mean of v to every individual element of v and assigns the result to v1  
+
+```{r, comment=NA}
+
+```
+  
+# Problem 2  
+  
+Given a character vector vchars, write a single statement that prints the number of missing values in vchar  
+  
+```{r, comment=NA}
+
+```
+
