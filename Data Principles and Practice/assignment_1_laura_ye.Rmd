@@ -1,13 +1,13 @@
 ---  
 title: "Assignment 1"
-author: "YOUR FIRST AND LAST NAME GOES HERE"  
+author: "LAURA YE"  
 date: "October 11, 2017"  
 output: 
   html_document:  
     toc: yes  
 
 ---  
-email address: your_address@yourdomain.com
+email address: laura.ye.lin@gmail.com
   
 ***
 Instructions: answer the questions below,  Do not use the R interpreter or the Internet during the quiz  
@@ -22,7 +22,11 @@ Use only base R code in your answers , no use of packages unless specified.  No 
 Given a 10 element numeric vector v, give an R statement that adds the mean of v to every individual element of v and assigns the result to v1  
 
 ```{r, comment=NA}
-
+v <- 1:10
+v_avg <- mean(v)
+v_avg
+v1 <- v_avg + v
+v1
 ```
   
 # Problem 2  
@@ -30,6 +34,108 @@ Given a 10 element numeric vector v, give an R statement that adds the mean of v
 Given a character vector vchars, write a single statement that prints the number of missing values in vchar  
   
 ```{r, comment=NA}
+vchars <- c("hello", "goodbye", "nothing", NA, NA, "see ya")
+sum(is.na(vchars))
+```
+
+# Problem 3
+
+Given a numeric vector nvec, write a single R statement that assigns a zero to every negative element present in nvec 
+
+```{r, comment=NA}
+nvec <- rnorm(10, 0, 5)
+nvec
+nvec[nvec<0] <- 0
+nvec
 
 ```
 
+# Problem 4
+
+Given three vectors a, b, and d, create a fourth vector consisting of the concatenation of d, b, and a in that order
+
+```{r, comment=NA}
+a <- 0:10
+b <- 5:10
+d <- 20:25
+c(d,b,a)
+```
+
+# Problem 5
+
+What is printed by the following R statement?
+
+print(typeof(c(TRUE, 317, 412, "2007-03-01"))
+
+```{r, comment=NA}
+"character"
+```
+
+# Problem 6
+
+A data frame df has the following columns:
+
+$ scores <dbl> 79.51508, 67.84057, 74.89246, 75.71270, 74.18168, 75.73072, 77.76586, 76.790...
+
+$ eval   <chr> "k", "p", "i", "d", "c", "z", "m", "j", "t", "u"
+
+(A) Write a single R statement that deletes all the rows in df for which scores is less than the mean of scores
+
+```{r, comment=NA}
+scores <- c(79.51508, 67.84057, 74.89246, 75.71270, 74.18168, 75.73072, 77.76586, 76.790)
+eval <- c("k", "p", "i", "d", "c", "z", "m", "j")
+
+df <- data.frame(scores,eval)
+df
+df_subset <- subset(df, df$scores>mean(scores))
+df_subset
+```
+
+(B) Add a new column names new_scores to df consisting of a normally distributed random vector with mean 100 and standard deviation 5
+
+```{r, comment=NA}
+df$new_scores <- rnorm(n=nrow(df), mean=100, sd=5)
+df
+```
+
+# Problem 7
+
+What is the R statement used to install a package?
+
+```{r,comment=NA}
+install.packages("ggplot2", repos = "http://cran.us.r-project.org")
+```
+
+Load a package? 
+
+```{r,comment=NA}
+library(ggplot2)
+```
+
+Should the package be installed every time it is loaded?
+
+No, the packaged should only be installed once and can be loaded multiple times.
+
+# Problem 8
+
+Write an R function normalize_0_1 that normalizes a numeric vector or matrix between 0 and 1 using the following formula:
+
+$$\frac{x-min(x)}{max(x)-min(x)}$$
+
+```{r, comment=NA}
+normalize_0_1 <- function(input){
+	min <- min(input)
+	max <- max(input)
+	input <- (input-min)/(max-min)
+	
+	return (input)
+}
+```
+
+Use normalize_0_1 to normalize a vector v with 10 uniformly distributed random numbers between 100 and 200.
+
+```{r,comment=NA}
+v <- runif(10, min=100, max=200)
+
+normalize_0_1(v)
+```

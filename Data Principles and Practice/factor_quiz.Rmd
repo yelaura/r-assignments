@@ -1,0 +1,51 @@
+---
+title: "quiz - r factors"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+Create an R factor cf with three levels, red, yellow, and green, consisting of the following elements: red, green, green, yellow, red, red, red, yellow, green.
+
+```{r}
+cf <- c(1,3,3,2,1,1,1,2,3)
+cf <- factor(lights)
+levels(cf) <- c("red", "yellow", "green")
+```
+
+A. Print cf
+
+```{r}
+print(cf)
+```
+
+B. Use str() to display the structure of cf as a string.
+
+```{r}
+str(cf)
+```
+
+C. Displaying the count and percent of total of each level in cf
+
+```{r}
+totals <- table(cf)
+pct <- totals / sum(totals)
+totals
+pct
+```
+
+2. Given the following factor of:
+
+```{r}
+nf <- factor(c(2,4,7,9.10))
+```
+
+A. Print the sum of the elements in nf
+
+```{r}
+sum(as.numeric(as.character(nf)))
+```
+
+B. What's the GOTCHA! solution to this problem?
+
+factors cannot be treated like a regular vector. They need to be declassed if you want to take the sum or do any arithmetic operations.

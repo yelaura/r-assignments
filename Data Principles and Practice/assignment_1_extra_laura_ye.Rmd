@@ -1,0 +1,285 @@
+---
+title: "Assignment 1 Extra"
+author: "LAURA YE"  
+date: "October 11, 2017"  
+output: 
+  html_document:  
+    toc: yes  
+
+---  
+
+email address: laura.ye.lin@gmail.com
+
+***
+
+# Problem 1
+
+What happens when you create a vector of size 10 and you reference the 11th element, e.g., v[11]?
+
+```{r, comment=NA}
+v=1:10
+v[11]
+```
+
+What happens to the 11th element if you assign a value to the 12th?
+
+```{r}
+v[12] <- 15
+v[11]
+v
+```
+
+
+Write some short R statements that demonstrates the result along with a brief (1-2 sentences) explanation.
+
+When you reference the 11th element in a 10 element array, the result is NA. When you assign a value to the 12th element in a 10 element array, the 11th element stays NA.
+
+# Problem 2
+
+Give the R code to create a character vector cv with the string "abc123def" repeated 67 times as individual elements in the vector (abc123def, abc123def, etc).
+
+```{r, comment=NA}
+cv <- rep("abc123def", 67)
+```
+
+Create another vector nv with the numbers 123342 and 402001 repeated together, one after the other, 251 times. Do not print the data structures, just the R statements that creates them. See: the base R rep() function.
+
+```{r, comment=NA}
+nv <- rep(c(123342, 402001), 251)
+```
+
+# Problem 3
+
+Given two numeric vectors, a and b, of the same (arbitrary) size, write an expression that generates a third vector, v, containing either TRUE or FALSE depending on whether the corresponding elements of b are multiples of a.
+
+Example: a<-c(2,3), b<-(6,14)
+Result is TRUE, FALSE.
+
+```{r, commment=NA}
+a <- c(1,2,3,4,5)
+b <- c(6, 33, 50, 80, 101)
+b %% a == 0
+```
+
+# Problem 4
+
+Given a vector v <- floor(runif(1000)*100), provide the three following R commands:
+
+(1) Whether 88 appears as an element in v
+
+```{r, comment=NA}
+v <- floor(runif(1000)*100)
+any(v == 88)
+```
+
+(2) Whether all of the elements are non-zero
+
+```{r, comment=NA}
+all(v != 0)
+```
+
+(3) How many elements with values between 13 and 17 (inclusive) appear in v, and at which positions?
+
+```{r, comment=NA}
+sum( (v>=13) & (v<=17) )
+which((v>=13) & (v<=17))
+```
+
+See: the base r any() and all() functions.
+
+# Problem 5
+
+Given vectors v and w, generate a third vector z containing the elements that appear in the same positions in both v and w.
+
+```{r, comment=NA}
+v <- 1:10
+w <- c(1,2,9,16,5,36,7,64,9,100)
+z <- v[v == w]
+z
+```
+
+# Problem 6
+
+Use: numeric, character, and logical modes only to answer this question.
+
+Explain how R matrix objects handle attempts at mixed-mode variable assignment. Write R code using vector objects that demonstrates the mode hierarchy order. In other words, show the resulting mode of the various possible mixed mode assignments.
+
+```{r, comment=NA}
+#All three modes:
+v <- c("True", TRUE, 1)
+v
+
+# Only character and logical modes
+v <- c("True", TRUE)
+v
+
+# Only character and numeric modes
+v <- c("True", 1)
+v
+
+# Only numeric and logical modes
+v <- c(TRUE, 1)
+v
+```
+
+In summary, when all three modes are present and other vectors where character mode is present, the character mode takes precedence. Next, the numeric mode takes precedent and logical elements will be converted to numeric.
+
+# Problem 7
+
+Using the complete vectors a <- c(1,2,3), b <- c(4,5,6) only (no reassigning individual elements), use rbind() and cbind() to write the R code necessary to create the following matrix:
+
+1 2 3 1
+
+4 5 6 2
+
+1 2 3 3
+
+```{r, comment=NA}
+a <- c(1,2,3)
+b <- c(4,5,6)
+
+cbind(rbind(a,b,a), a)
+```
+
+# Problem 8
+
+Assume exams is a data frame consisting of student ids, scores, and course_ids. Give the code necessary to omit any rows containing missing values.
+
+```{r, comment=NA}
+scores <- rnorm(10, 95, 5)
+student_ids <- sample(1:100000,10,replace=F)
+course_ids <- sample(1:10000, 10, replace=T)
+
+student_ids[4] <- NA
+course_ids[5] <- NA
+
+exams <- data.frame(student_ids, scores, course_ids)
+subset(exams, !(is.na(exams$student_ids)) & !(is.na(exams$scores)) & !(is.na(exams$course_ids)))
+```
+
+# Problem 9
+
+Create a dataframe with the following named columns:
+
+1. zeroes - consists of 212 zeros
+
+2. three_mults - consist of the first 212 multiples of 3
+
+3. digivals - consists of the two integers 1011 and 310 repeated one after the other, 106 times.
+
+4. randvals - a set of uniformly distributed random numbers between 0 and 1
+
+5. gt_point_5 - TRUE or FALSE whether the corresponding number in randvals >0.5
+
+```{r, comment=NA}
+zeroes <- rep(0,212)
+three_mults <- 1:212 * 3
+digivals <- rep(c(1011,310), 106)
+randvals <- runif(212)
+gt_point_5 <- randvals > 0.5
+
+df <- data.frame(zeroes, three_mults, digivals, randvals, gt_point_5)
+head(df)
+```
+
+# Problem 10
+
+This problem investigates the use and internal representation of Factors in R.
+
+Create a factor fruit consisting of 100 random elements ( hint: use floor(runif(100, 1, 8)) ) with the following levels:
+
+apple, orange, banana , pear, lemon, peach , mango
+
+```{r, comment=NA}
+fruit <- factor(floor(runif(100, 1, 8)))
+fruit
+levels(fruit) <- c("apple", "orange", "banana", "pear", "lemon", "peach", "mango")
+fruit
+```
+
+A. Examine the representation of the factor using unclass(fruit). Briefly (1-2 sentences, maximum) explain the representation of fruits generated by
+unclass(fruit).
+
+```{r, comment=NA}
+unclass(fruit)
+```
+
+```unclass(fruit)``` removes the levels from fruit and reverts it back to its numeric representation.
+
+B. Use the fruit factor you created in (A) above to create a data frame fruit_df that has the following three columns in the following order:
+
+name: fruit_name. values: the levels of fruit
+
+name: fruit_count. values: the number of occurrences of each of the levels in fruit
+
+name: fruit_prop. values: the proportion of each of the levels in the factor fruit.
+
+Note: use only the factor fruit to create the data frame, no strings or vectors other than those you generate using fruit.
+
+```{r, comment=NA}
+fruit_name <- levels(fruit)
+fruit_count <- c(table(fruit))
+fruit_prop <- fruit_count / sum(fruit_count)
+fruit_df <- data.frame(fruit_name, fruit_count, fruit_prop)
+fruit_df
+```
+
+# Problem 11
+
+R list problem: given the following variables:
+
+```{r, comment=NA}
+colors = c("grey", "purple", "brown", "red", "blue")
+numbers = list(17, 33, 52)
+outcomes = c(TRUE, FALSE, TRUE, TRUE, FALSE)
+set.seed(11)
+seating <- matrix(letters[floor(runif(12, 1, 27))], 3, 4)
+qlist = list(colors = colors, numbers, outcomes, 313, list('abc', 'def', 'ghi'), seating)
+```
+
+(a) print the vector colors of qlist using indexing and the qlist name colors
+
+```{r, comment=NA}
+qlist[[1]]
+```
+
+(b) print the element 313 of qlist
+
+```{r, comment=NA}
+qlist[[4]]
+```
+
+(c) print the second element of the vector outcomes in qlist
+
+```{r, comment=NA}
+qlist[[2]]
+```
+
+(d) print the element 'ghi'
+
+```{r, comment=NA}
+qlist[[5]][[3]]
+```
+
+(e) assign to a new variable v a vector consisting of the second row of seating, columns 2 and 4
+
+```{r, comment=NA}
+v <- qlist[[6]][2,c(2,4)]
+v
+```
+
+(f) Assign the slice of colors consisting of "purple", "brown", and "red" to a variable
+new_colors
+
+```{r, comment=NA}
+new_colors <- qlist[[1]][2:4]
+new_colors
+```
+
+Important notes:
+
+. use only list brackets ("[]") in your solutions.
+
+. Do not use element names (such as qlist$colors) in your solutions.
+
+. Use only qlist and the simplest possible indexing in your solutions, c() only when necessary. In other words, don't build vector or matrix objects using c() or cbind() (etc.) using one-by-one elements
