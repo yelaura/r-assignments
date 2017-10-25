@@ -1,0 +1,26 @@
+1. 5 tools/tasks/stages for typical DS process
+
+load, clean, transform, visualize, present
+answers: 
+
+2. 4 data sources
+
+csv - local file data (json, txt, R objects)
+webpage (html)
+databases (SQL)
+API
+
+3. Advantages of tidy data? What problems are caused by untidy data?
+
+tidying data will make it easier to visualize and transform
+untidy data will cause there to be errors in the code
+
+4. data visualization
+
+ggplot and shiny
+
+5. what differentiates data science from traditional stat analysis?
+
+scale - data science often uses big data
+machine learning = data science
+
