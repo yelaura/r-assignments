@@ -29,11 +29,67 @@ The data set consists of heartbeats in audio .wav files. These files were import
 
 Here is a sample of each type of heartbeat:
 
-Normal
 
-Murmur
+```{r, fig.width=7, fig.height=7, error=TRUE, echo=FALSE, warning=FALSE, message=FALSE, cache=FALSE}
+files <- c("C:\\Users\\lye\\Downloads\\R folder\\Final Project\\set_a.csv")
+# read all the csvs
+
+df_a <- read.csv(files[1])
+
+library(tuneR)
+
+set_a <- c()
+
+for (item in df_a$fname){
+  wave <- readWave(paste('C:\\Users\\lye\\Downloads\\R folder\\Final Project\\',item, sep=""))
+  set_a <- rbind(set_a,wave@left)
+}
+
+set_a <- as.data.frame(set_a)
+
+artifacts <- set_a[df_a$label=="artifact",]
+extrahls <- set_a[df_a$label=="extrahls",]
+murmur <- set_a[df_a$label=="murmur",]
+normal <- set_a[df_a$label=="normal",]
+labelled <- set_a[df_a$label != "",]
+
+plot(1:length(normal[5,]), 
+     normal[5,], 
+     type="l",
+     xlab="Index",
+     ylab="Value",
+     main="Normal Heartbeat")
+```
 
 
+```{r, fig.width=7, fig.height=7, echo=FALSE}
+plot(1:length(murmur[5,]), 
+     murmur[5,], 
+     type="l",
+     xlab="Index",
+     ylab="Value",
+     main="Murmur Heartbeat")
+```
+
+
+```{r, fig.width=7, fig.height=7, echo=FALSE}
+plot(1:length(extrahls[5,]), 
+     extrahls[5,], 
+     type="l",
+     xlab="Index",
+     ylab="Value",
+     main="Extrahl Heartbeat")
+```
+
+
+```{r, fig.width=7, fig.height=7, echo=FALSE}
+plot(1:length(artifacts[5,]), 
+     artifacts[5,], 
+     type="l",
+     xlab="Index",
+     ylab="Value",
+     main="Artifact Heartbeat")
+```
 
 ***
 
