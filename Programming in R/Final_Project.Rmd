@@ -1,5 +1,5 @@
 ---
-title: "Final Project"
+title: "Programming in R: Final Project"
 author: "Laura Ye"
 date: "September 26, 2017"
 output: html_document
@@ -9,7 +9,7 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Motivation
+# Motivation
 
 There were a few key points to the motivation for this project.
 
@@ -19,17 +19,27 @@ The second and final key point was that I wanted to develop something that had r
 
 ***
 
-## Data Sources
+# Data Sources
 
 The source of this data came from a Kaggle Dataset called, "Heartbeat Sounds". Sound waves of four different types of heartbeat sounds (labelled) were analyzed.
 
 Download the data set here: [Heartbeat Sounds](http://www.kaggle.com/kinguistics/heartbeat-sounds)
 
+The data set consists of heartbeats in audio .wav files. These files were imported as numeric vectors using tuneR::readwave, and then manipulated as data frames.
+
+Here is a sample of each type of heartbeat:
+
+Normal
+
+Murmur
+
+
+
 ***
 
-## Effective Analysis Methods Applied
+# Effective Analysis Methods Applied
 
-### Exploratory Data Analysis
+## Exploratory Data Analysis
 
 First, exploratory data analysis was conducted to visually inspect differences between vectors. Since each vector consisted of nearly 400,000 elements, they were simplified to one characteristic to simplify the visualization.
 
@@ -41,7 +51,7 @@ image: ![](C:\Users\lye\Downloads\R folder\max(x) vs min.jpg)
 
 Other plots did not show strong correlations.
 
-### Time Series Conversion
+## Time Series Conversion
 
 Since each of these vectors were audio signals, one way to normalize the data is to convert them into a time series using ```ts```, a built-in R function:
 
@@ -51,7 +61,7 @@ ts_model <- apply(labelled,1,ts)
 
 These time series models were then used for the next subsequent steps.
 
-### Principal Component Analysis
+## Principal Component Analysis
 
 Since there were close to 400,000 elements in each of the 124 vectors, the most practical way is to reduce dimensionality using Principal Component Analysis. 
 
@@ -65,7 +75,7 @@ PCA <- prcomp(ts_model)
 newdat <- PCA$x[,1:2]
 ```
 
-### Machine Learning
+## Machine Learning
 
 After time series conversion and principal component analysis, I tried to classify the data using these methods from the ```caret``` package: LDA, CART, Random Forest (rf), K-nearest neighbors (knn), SVM (svmRadial), Naive Bayesian (naive_bayes) and also neural network (nnet). These methods were diverse, yet applicable to this data set and I wanted to see which type of classifier would be the most accurate.
 
@@ -73,11 +83,11 @@ I also attempted k-means clustering for the data set for four clusters and visua
 
 ***
 
-## Results and Interpretation
+# Results and Interpretation
 
 The machine learning methods that I used were not very accurate for this application. The best classifier had an accuracy of ~50%. This is likely due to the nature of the data. There may be other methods that would produce more accurate predictions for this data set. 
 
-### Best results out of ```caret``` package
+## Best results out of ```caret``` package
 
 Random Forest returned the best results in accuracy whether I used 2 principal components or 100. However, overall results for these methods were in the same general vicinity.
 
@@ -90,7 +100,7 @@ Let us see the changes in accuracy for random forest as number of principal comp
 
 We can see the fluctuation is pronounced for number of principal components from 2 to 68.
 
-### K-means Clustering
+## K-means Clustering
 
 Measuring the accuracy of k-means clustering was more subjective. Visually inspecting the results, for each iteration using different number of principal components, a majority of results (97%) would fall on one category and this category was not consistently the same.
 
@@ -109,9 +119,9 @@ No. of PCs | 1 | 2 | 3 | 4
 
 ***
 
-## Conclusions
+# Conclusions
 
-### What did I learn?
+## What did I learn?
 
 From this project, I learned that each step in data analysis do not exist separately. For example, when importing and organizing the data set, it was important to think about something as essential as class type and also data distribution. Because each step builds on top of each other, when a change is required in an earlier step, some time is wasted in regenerating results from the intermediate steps. Therefore, it is important to understand what your data consists of, and plan out the implementation of data analysis for each data set.
 
@@ -119,9 +129,9 @@ I also learned more about handling big data. I was only dealing with 125 labelle
 
 ***
 
-## Future Work
+# Future Work
 
-### How can this work be expanded?
+## How can this work be expanded?
 
 Additional classification methods, especially those built into the ```caret``` package, may be more accurate in classifying this data. Of the few that I modelled in this project, random forest was the most accurate. Further work can be done to determine the best and most accurate caret method for classification. 
 
