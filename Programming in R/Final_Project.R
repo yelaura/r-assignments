@@ -2,13 +2,13 @@
 
 # name of the directories of the files
 
-setwd('C:\\Users\\lye\\OneDrive\\My Documents\\GitHub\\r-assignments')
+setwd('C:\\Users\\lye\\Downloads\\R folder\\Final Project')
 
-files <- c("C:\\Users\\lye\\Documents\\GitHub\\r-assignments\\Final Project\\set_a.csv")
+files <- c("C:\\Users\\lye\\Downloads\\R folder\\Final Project\\set_a.csv")
 # read all the csvs
 
 df_a <- read.csv(files[1])
-df_a_timing <- read.csv(files[2])
+#df_a_timing <- read.csv(files[2])
 
 # read all of the wav files
 # use tuneR.readWave to interpret wav files into a vector of integers
@@ -19,7 +19,7 @@ library(tuneR)
 set_a <- c()
 
 for (item in df_a$fname){
-  wave <- readWave(paste('C:\\Users\\lye\\Documents\\GitHub\\r-assignments\\Final Project\\',item, sep=""))
+  wave <- readWave(paste('C:\\Users\\lye\\Downloads\\R folder\\Final Project\\',item, sep=""))
   set_a <- rbind(set_a,wave@left)
 }
 
@@ -408,7 +408,7 @@ plot(predict(PCA, murmur), main="PCA plot (color-coded)")
 points(predict(PCA, artifacts), col="blue")
 points(predict(PCA, normal), col="green")
 points(predict(PCA, extrahls), col="red")
-legend(x="topleft", 
+legend(x="topleft",
        legend=c('Murmur', 'Artifacts', 'Normal', 'Extrahls'), 
        col=c('black', 'blue', 'green', 'red'), 
        pch=1)
