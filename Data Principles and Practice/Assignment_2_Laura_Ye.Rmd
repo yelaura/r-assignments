@@ -14,8 +14,9 @@ output:
 
 Let's load the AOL Search Data Set (extracted from aol_search_data.zip):
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE, cache=TRUE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE, cache=TRUE}
 library(tidyverse)
+library(dplyr)
 setwd("C:\\Users\\lye\\Downloads\\aol_search_data")
 user_searches <- read_tsv("user_searches.txt")
 ```
@@ -26,13 +27,13 @@ user_searches <- read_tsv("user_searches.txt")
 
 See how the current column names look like:
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 names(user_searches)
 ```
 
 Function for transforming a string to snake case
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 snake_case <- function (x) {
   s <- gsub("\\.", "_", x) # Replace dots with underscores
   s <- gsub("(.)([A-Z][a-z]+)", "\\1_\\2", s) # Separate with underscores on capitalization
@@ -44,7 +45,7 @@ snake_case <- function (x) {
 ```
 
 Function for converting data frame result column names to snake case
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 fix_column_names <- function(x) {
   names(x) <- snake_case(names(x))
   return(x)
@@ -56,7 +57,7 @@ user_searches <- user_searches %>%
 
 Check that the column names have been transformed:
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE }
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE }
 names(user_searches)
 ```
 
@@ -68,7 +69,7 @@ A "user session" is defined by all events for a given user where there is no mor
 
 First, determine which rows belong to which sessions.
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE }
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE }
 sessions <- user_searches %>%
   arrange(anon_id, query_time) %>%
   group_by(anon_id) %>%
@@ -83,7 +84,7 @@ sessions <- user_searches %>%
 
 Now that we have the each query broken assigned to a unique session ID per user, we can summarize its statistics and gather data like number of searches, when the session started, when the session ended, session duration, number of clicks, mean rank of query, and mean number of search terms (separated by " ").
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 sessions_stats <- sessions %>%
   group_by(anon_id, session_sequence_number) %>%
   summarise(
@@ -104,8 +105,9 @@ sessions_stats <- sessions %>%
 
 Distribution of session durations (histogram count)
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 require(ggplot2)
+
 ggplot(sessions_stats, aes(session_length)) + 
   geom_histogram(binwidth = 5) + 
   geom_density(aes(y=5 * ..count.., colour="red"), size=1,show.legend=FALSE) + 
@@ -117,7 +119,7 @@ ggplot(sessions_stats, aes(session_length)) +
 
 Distribution of the number of clicks per session (histogram count)
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 ggplot(sessions_stats, aes(number_clicks)) + 
   geom_histogram(binwidth = 1) + 
   geom_density(aes(y=1 * ..count.., colour="red"), size=1,show.legend=FALSE) + 
@@ -131,7 +133,7 @@ ggplot(sessions_stats, aes(number_clicks)) +
 
 First, calculate the statistics by user
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 user_stats <- sessions_stats %>%
   group_by(anon_id) %>%
   summarise(
@@ -143,7 +145,7 @@ user_stats <- sessions_stats %>%
 
 Distribution of the number of sessions by user (histogram count)
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 ggplot(user_stats, aes(sessions_count)) + 
   geom_histogram(binwidth = 1) + 
   geom_density(aes(y=1 * ..count.., colour="red"), size=1,show.legend=FALSE) + 
@@ -155,7 +157,7 @@ ggplot(user_stats, aes(sessions_count)) +
 
 Distribution of the mean session duration by user (histogram count)
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 ggplot(user_stats, aes(mean_session_length)) + 
   geom_histogram(binwidth = 1) + 
   geom_density(aes(y=1 * ..count.., colour="red"), size=1,show.legend=FALSE) + 
@@ -169,17 +171,16 @@ ggplot(user_stats, aes(mean_session_length)) +
 
 We will convert the query_time to its hour, then add this value as a column to the ```user_searches``` data frame,
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 
 user_searches_time <- user_searches %>%
-  mutate(query_time_hour = lubridate::hour(strptime(query_time, format="%Y-%m-%d %H:%M:%S"))) %>%
-  number_clicks = as.numeric(!is.na(click_url))
+  mutate(query_time_hour = lubridate::hour(strptime(query_time, format="%Y-%m-%d %H:%M:%S")))
 
 ```
 
 There is now a new column that we can use to group the queries by the hour and determine stats for the queries by the hour.
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 time_of_day_stats <- user_searches_time %>%
   group_by(query_time_hour) %>%
   summarise(
@@ -189,13 +190,25 @@ time_of_day_stats <- user_searches_time %>%
   glimpse
 ```
 
-Number of queries during a certain time of day
+Number of queries during each hour
 
-```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 ggplot(user_searches_time, aes(query_time_hour)) + 
   geom_bar() + 
-  geom_line(aes(query_time_hour,click_url)) +
   ggtitle("AOL Visitors - Number of Queries by Hour of Day") +
   xlab("Hour of Day") +
   ylab("Number of Queries")
 ```
+
+Number of clicks during each hour
+
+```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
+
+ggplot(user_searches_time %>% na.omit(), aes(query_time_hour)) + 
+  geom_bar() + 
+  ggtitle("AOL Visitors - Number of Queries by Hour of Day") +
+  xlab("Hour of Day") +
+  ylab("Number of Clicks")
+```
+
+For both queries and clicks, the minimum would occur around 4:00-5:00 and the maximum occurred around 21:00.
