@@ -1,0 +1,302 @@
+---  
+title: "Assignment 3"
+author: "LAURA YE; laura.ye.lin@gmail.com"  
+date: "December 4, 2017"  
+output: 
+  html_document:  
+    toc: yes  
+
+---  
+
+***
+
+# Part 1
+
+The data set in this assignment was obtained from a Local Area Unemployment Report, published by the US Government Department of Labor, Bureau of Labor Statistics (BLS).
+
+## Goals
+
+- Load data from sf_oak_metro.csv
+- Use ```tidyverse``` packages to generate 4 separate ggplot line plots of the following:
+1. Employment (numbers)
+2. Labor Force (numbers)
+3. Unemployment Rate (rate)
+4. Unemployment (numbers)
+
+## Load Data
+
+First, let's load the data:
+
+```{r, comment=NA, message=FALSE}
+library(tidyverse)
+ds <- read.table("sf_oak_metro.csv", header=T, sep=",")
+ds <- t(ds)
+```
+
+## Tidy Data
+
+Here, we tidy the data by including column names, coercing data types, and also extracted and coerced the month and year from the row names.
+
+```{r, comment=NA, message=FALSE}
+tdf <- as.data.frame(ds)
+colnames(tdf) <- c("Unemployment_Rate", "Unemployment", "Employment", "Labor_Force")
+
+#Delete first row
+df <- subset(tdf, rownames(tdf) != "Series.ID")
+
+#Coerce column data into numeric types
+df$Unemployment_Rate <- as.numeric(trimws(df$Unemployment_Rate, which="both"))
+df$Unemployment <- as.numeric(trimws(df$Unemployment, which="both"))
+df$Employment <- as.numeric(trimws(df$Employment, which="both"))
+df$Labor_Force <- as.numeric(trimws(df$Labor_Force, which="both"))
+
+# We also need a column for month and year in the rownames
+
+library(zoo)
+library(lubridate)
+
+df <- df %>%
+  mutate(MonthYear = as.character(rownames(df))) %>% #extract row names as monthyear
+  mutate(MonthYear = gsub(".", " ", MonthYear, fixed=TRUE)) %>% # find and replace "." with " "
+  mutate(MonthYear = as.yearmon(MonthYear)) %>% # convert to zoo::yearmon
+  mutate(Month = as.factor(month(MonthYear))) %>%
+  mutate(MonthLabel = factor(month.abb[Month], levels=month.abb))
+
+# fix column names using snake case
+source("fix_column_names.R")
+df <- df %>%
+  fix_column_names
+```
+
+Our tidied data frame looks like this:
+
+```{r, comment=NA}
+df %>% glimpse
+```
+
+## Plots
+
+Now that we have a tidied data frame, let's plot each variable in a ggplot line plot:
+
+```{r, comment=NA}
+library(ggplot2)
+library(lubridate)
+
+ggplot(df, aes(x=month_label, 
+               y=employment, 
+               group=factor(year(month_year)), 
+               colour=factor(year(month_year)))) + 
+  geom_line(size=1) +
+  ylab("Value") +
+  xlab("Month") + 
+  ggtitle("Employment: San Francisco-Oakland-Hayward CA Metropolitan Statistical Area") +
+  labs(color='Year')
+
+```
+
+```{r, comment=NA}
+ggplot(df, aes(x=month_label, 
+               y=labor_force, 
+               group=factor(year(month_year)), 
+               colour=factor(year(month_year)))) + 
+  geom_line(size=1) +
+  ylab("Value") +
+  xlab("Month") + 
+  labs(color='Year') +
+  ggtitle("Labor Force: San Francisco-Oakland-Hayward CA Metropolitan Statistical Area")
+
+```
+
+```{r, comment=NA}
+ggplot(df, aes(x=month_label, 
+               y=unemployment_rate, 
+               group=factor(year(month_year)), 
+               colour=factor(year(month_year)))) + 
+  geom_line(size=1) +
+  ylab("Value") +
+  xlab("Month") + 
+  labs(color='Year')+ 
+  ggtitle("Unemployment Rate: San Francisco-Oakland-Hayward CA Metropolitan Statistical Area")
+
+```
+
+```{r, comment=NA}
+ggplot(df, aes(x=month_label, 
+               y=unemployment, 
+               group=factor(year(month_year)), 
+               colour=factor(year(month_year)))) + 
+  geom_line(size=1) +
+  ylab("Value") +
+  xlab("Month") + 
+  labs(color='Year')+ 
+  ggtitle("Unemployment: San Francisco-Oakland-Hayward CA Metropolitan Statistical Area")
+
+```
+
+# Part 2
+
+## Goals
+1. Leaflet chloropleth map showing all California counties only
+2. Load and tidy data for unemployment rates in Dec 2016 only
+3. Leaflet chloropleth map showing unemployment rates (only, with legend) for all California counties for Dec 2016 only
+4. Shiny app that lets users choose the month to display the chloropleth map and also which statistic to display
+
+## Leaflet chloropleth map showing all California counties only
+
+gz_2010_us_050_00_20m.json stores store shape files for all US counties. Let's load these shape files using ```rgdal::readOGR```.
+
+```{r, comment=NA, message=FALSE}
+library(geojsonio)
+library(rgdal)
+library(jsonlite)
+library(spdplyr)
+library(geojsonlint)
+
+counties <- readOGR(dsn = "C:\\Users\\lye\\Documents\\GitHub\\r-assignments\\Data Principles and Practice\\gz_2010_us_050_00_20m.json",
+                  layer = "gz_2010_us_050_00_20m", verbose = FALSE)
+
+#fix column names
+counties@data <- counties@data %>%
+  fix_column_names
+  
+counties@data %>% glimpse
+
+```
+
+Let's filter these counties to ones that are only in California. According to FIPS State Codes, California's state code is "06".
+
+```{r, comment=NA, message=FALSE}
+ca_counties <- counties %>% 
+  filter(state == "06")
+```
+
+Now we have California-specific shape files stored in ```ca_counties```:
+
+```{r, comment=NA, message=FALSE}
+ca_counties@data %>% glimpse
+```
+
+Now, we are ready to start building our map, which we name ```m``` for convenience:
+
+```{r, comment=NA, message=FALSE}
+library(leaflet)
+m <- leaflet(ca_counties, width = "65%") %>%
+  setView(-120, 37.8, 5) %>%
+  addTiles()
+
+m %>% addPolygons()
+```
+
+In the map, we only see California counties, which is what we want.
+
+## Load and tidy data for unemployment rates in Dec 2016 only
+
+```{r, comment=NA, message=FALSE}
+library(dplyr)
+library(tidyverse)
+emp_data <- read_tsv("california_counties_monthly_employment_2016.tsv")
+
+#fix column names
+emp_data <- emp_data %>% 
+  fix_column_names %>% 
+  glimpse
+```
+
+We are only interested in unemployment rate, so let's narrow down to the columns we need: fips_county, unemployed_rate and period.
+
+```{r, comment=NA, message=FALSE}
+unemployment_rate <- emp_data %>%
+  select(fips_county, unemployed_rate, period) %>% 
+  mutate(fips_county = as.factor(fips_county)) %>%
+  glimpse
+```
+
+Right now, the data is in the long format since the fips_county column do not contain unique values. We need to convert the data to the wide format in order to join the data with ```ca_counties@data```.
+
+```{r, comment=NA, message=FALSE}
+library(tidyr)
+wide_data <- unemployment_rate %>%
+  spread(key = fips_county, value = unemployed_rate)
+
+wide_data %>% head
+```
+
+For now we are only interested in data from December 2016 and we want to format it so that we have one column with COUNTY (matching ```ca_counties@data```) and another with unemployment_rate. We also need to transpose the data so that there is a county column.
+
+```{r, comment=NA, message=FALSE, warning=FALSE}
+library(lubridate)
+dec_data <- wide_data %>%
+  filter(year(period) == 2016 & month(period) == 12) %>%
+  t() %>% as.data.frame()
+
+dec_data <- dec_data %>%
+  mutate(county = as.factor(rownames(dec_data))) %>%
+  mutate(unemployment_rate = as.numeric(as.character(V1)))
+
+dec_data = dec_data[-1,]
+
+dec_data <- dec_data %>% 
+  select(county, unemployment_rate)
+
+dec_data %>% head
+```
+
+Now we want to join ```dec_data``` with ```ca_counties@data``` so that the chloropleth map can link the unemployment data with each county.
+
+```{r, comment=NA, message=FALSE, warning=FALSE}
+ca_counties@data <- ca_counties@data %>%
+  inner_join(dec_data, by="county") %>%
+  glimpse
+```
+
+We are now ready to add this data to our chloropleth map.
+
+## Leaflet chloropleth map showing unemployment rates for all California counties for Dec 2016 only
+
+To determine the scale for the color palette of the chloropleth map, let's take a quick look at the boxplot for the unemployment rate:
+
+```{r, comment=NA, message=FALSE}
+boxplot(ca_counties@data$unemployment_rate)
+title("Unemployment Rate")
+```
+
+We see that the data ranges from 0 to 20, with the mean around 7.
+
+We can create bins in increments of 5, so that we can see the differences in unemployment rate across the counties in California. 
+
+```{r, comment=NA, message=FALSE}
+#Determine bins and color palette
+bins <- seq(from=0,to=20, by=5)
+pal <- colorBin("YlOrRd", domain = ca_counties@data$unemployment_rate, bins = bins)
+
+#Apply color palette to polygons of county shapes
+m <- m %>% 
+  addPolygons(
+    fillColor = ~pal(ca_counties@data$unemployment_rate),
+    weight = 2,
+    opacity = 1,
+    color = "white",
+    dashArray = "3",
+    fillOpacity = 0.7,
+    highlight = highlightOptions(
+      weight = 5,
+      color = "#666",
+      dashArray = "",
+      fillOpacity = 0.7,
+      bringToFront = TRUE)) %>% 
+  
+  #Add a legend
+  addLegend(pal = pal, 
+            values = ~ca_counties@data$unemployment_rate, 
+            opacity = 0.7, 
+            title = "Unemployment Rate (Dec 2016)", 
+            position = "bottomleft")
+
+m
+```
+
+## Interactive Chloropleth Map
+
+The last goal is to create an interactive chloropleth map that lets the user select the month to display and also which statistic to display.
+
+You can access the interactive map, generated by Shiny, here:

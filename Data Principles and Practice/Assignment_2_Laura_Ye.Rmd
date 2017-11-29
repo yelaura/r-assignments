@@ -16,6 +16,7 @@ Let's load the AOL Search Data Set (extracted from aol_search_data.zip):
 
 ```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE, cache=TRUE}
 library(tidyverse)
+library(dplyr)
 setwd("C:\\Users\\lye\\Downloads\\aol_search_data")
 user_searches <- read_tsv("user_searches.txt")
 ```
@@ -106,6 +107,7 @@ Distribution of session durations (histogram count)
 
 ```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
 require(ggplot2)
+
 ggplot(sessions_stats, aes(session_length)) + 
   geom_histogram(binwidth = 5) + 
   geom_density(aes(y=5 * ..count.., colour="red"), size=1,show.legend=FALSE) + 
@@ -172,8 +174,7 @@ We will convert the query_time to its hour, then add this value as a column to t
 ```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
 
 user_searches_time <- user_searches %>%
-  mutate(query_time_hour = lubridate::hour(strptime(query_time, format="%Y-%m-%d %H:%M:%S"))) %>%
-  number_clicks = as.numeric(!is.na(click_url))
+  mutate(query_time_hour = lubridate::hour(strptime(query_time, format="%Y-%m-%d %H:%M:%S")))
 
 ```
 
@@ -189,13 +190,25 @@ time_of_day_stats <- user_searches_time %>%
   glimpse
 ```
 
-Number of queries during a certain time of day
+Number of queries during each hour
 
 ```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
 ggplot(user_searches_time, aes(query_time_hour)) + 
   geom_bar() + 
-  geom_line(aes(query_time_hour,click_url)) +
   ggtitle("AOL Visitors - Number of Queries by Hour of Day") +
   xlab("Hour of Day") +
   ylab("Number of Queries")
 ```
+
+Number of clicks during each hour
+
+```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+
+ggplot(user_searches_time %>% na.omit(), aes(query_time_hour)) + 
+  geom_bar() + 
+  ggtitle("AOL Visitors - Number of Clicks by Hour of Day") +
+  xlab("Hour of Day") +
+  ylab("Number of Clicks")
+```
+
+For both queries and clicks, the minimum would occur around 4:00-5:00 and the maximum occurred around 21:00.
