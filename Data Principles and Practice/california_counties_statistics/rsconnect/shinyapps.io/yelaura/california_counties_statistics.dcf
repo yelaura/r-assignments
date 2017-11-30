@@ -1,0 +1,12 @@
+name: california_counties_statistics
+title: California_Counties_Statistics
+username:
+account: yelaura
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 242007
+bundleId: 1105881
+url: https://yelaura.shinyapps.io/california_counties_statistics/
+when: 1512026726.18621
+asMultiple: FALSE
+asStatic: FALSE
