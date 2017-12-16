@@ -1,0 +1,40 @@
+---
+title: "Week 5 Quiz - ggplot2"
+output: html_notebook
+---
+
+1. Using set.seed(1187) generate a 1000 row sample (without replacement) of the ggplot2::diamonds dataset, and create a plot showing price by carat, using color to show how cut influences price, also using size to show how depth influences price. (scatterplot)
+
+```{r}
+library(ggplot2)
+library(dplyr)
+diamonds %>% glimpse
+
+set.seed(1187)
+samples <- sample_n(diamonds,
+       size= 1000, 
+       replace = FALSE)
+
+ggplot(samples, aes(x=carat, y=price)) + 
+  geom_point(aes(color=as.factor(cut), size=depth))
+```
+
+2. Use the dataset BitCoin_Data.csv located in Files/Class Notes/Week 5 to generate a plot showing log(mean_price) by Date using a red line graph, where the total volume for each point is indicated by the size of the point.
+
+```{r}
+library(tidyverse)
+library(lubridate)
+bt <- read_csv("C:\\Users\\lye\\Downloads\\BitCoin_data.csv")
+bt$Date <- mdy(bt$Date)
+
+bt_summary <- bt %>%
+  group_by(Date) %>%
+  summarise(log_mean_price = log10(`24h Average`), volume = sum(`Total Volume`))
+
+ggplot(bt_summary, aes(x=Date, y=log_mean_price)) + 
+  geom_point(aes(size=volume)) + #static
+    geom_line(color="red") #dynamic
+
+```
+
+3. 

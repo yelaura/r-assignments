@@ -1,0 +1,31 @@
+Title: SF Pedestrian Safety Scores
+Description of Project: The city of San Francisco has many public datasets involving city infrastructure, crime, housing, environment, etc. In my project, I aim to use a few (detailed below) to visualize the typical safety of a pedestrian in the city of San Francisco. I will combine data from location of stop signs and traffic signals to cases opened and also police department incidents to determine the likelihood of an accident involving a pedestrian for each intersection.
+
+Data source for my project (Mainly from data.sfgov.org)
+
+311 Cases (311_Cases.tsv)
+URL: https://data.sfgov.org/City-Infrastructure/311-Cases/vw6y-z8j6
+Description: SF311 cases created since 7/1/2008
+
+Estimated Yearly Pedestrian Volume at Intersections (Estimated_Yearly_Pedestrian_Volume_at_Intersections.csv)
+URL: https://data.sfgov.org/Transportation/Estimated-Yearly-Pedestrian-Volume-at-Intersection/v62e-2jxp
+Description: Estimated yearly pedestrian volume at each intersection
+
+Stop Signs (Stop_Signs.csv)
+URL: https://data.sfgov.org/Transportation/Stop-Signs/wmdf-5y3x
+Description: Location of stop signs for operational and planning purposes.
+
+Traffic Signals (Traffic_Signals.csv)
+URL: https://data.sfgov.org/Transportation/Traffic-Signals/inpn-273m
+Description: This dataset serves as an inventory of traffic signals. This data is updated quarterly off of the operational data.
+
+Police Department Incidents (Police_Department_Incidents.csv)
+URL: https://data.sfgov.org/Public-Safety/Police-Department-Incidents/tmnf-yvry
+Description: Incidents derived from SFPD Crime Incident Reporting system Updated daily, showing data from 1/1/2003 up until two weeks ago from current date.
+
+Class topics that I will be focusing on:
+-data wrangling and joining using dplyr
+-exploratory data analysis
+-visualizing geospatial data and mapping
+-Shiny
+-

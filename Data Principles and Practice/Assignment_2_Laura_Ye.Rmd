@@ -202,11 +202,19 @@ ggplot(user_searches_time, aes(query_time_hour)) +
 
 Number of clicks during each hour
 
+<<<<<<< HEAD
 ```{r, echo=FALSE, comment=NA, warning=FALSE, message=FALSE}
 
 ggplot(user_searches_time %>% na.omit(), aes(query_time_hour)) + 
   geom_bar() + 
   ggtitle("AOL Visitors - Number of Queries by Hour of Day") +
+=======
+```{r, echo=TRUE, comment=NA, warning=FALSE, message=FALSE}
+
+ggplot(user_searches_time %>% na.omit(), aes(query_time_hour)) + 
+  geom_bar() + 
+  ggtitle("AOL Visitors - Number of Clicks by Hour of Day") +
+>>>>>>> e1f3eaa3c4eba44051fedea1a6080c5fa57e65d5
   xlab("Hour of Day") +
   ylab("Number of Clicks")
 ```

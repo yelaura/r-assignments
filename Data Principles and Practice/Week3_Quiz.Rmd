@@ -1,0 +1,125 @@
+---
+title: "Quiz Week 3"
+output:
+  html_document: default
+  html_notebook: default
+---
+
+Use the nycflights13::flights to answer the following questions. Use diplyr pipes in all your answers.
+
+1. Create two data frames, one consisting of 1000 observations, the other consisting of the 0.1% of the flights dataset.
+
+```{r, message=FALSE}
+library(nycflights13)
+library(dplyr)
+
+f1000 <- sample_n(nycflights13::flights, 1000)
+f0001 <- sample_frac(nycflights13::flights, 0.001)
+```
+
+2. Create a data frame that removes duplicate rows based on departure day and carriers only.
+
+```{r, message=FALSE}
+new_df <- nycflights13::flights %>%
+  distinct(day, carrier, .keep_all=TRUE)
+```
+
+3. Create a data frame from df1 consisting of only carrier and tailnum, create a data frame df2 consisting of all of the original variables in flights except carrier and tailnum.
+
+```{r, message=FALSE}
+df1 <- select(nycflights13::flights, carrier, tailnum)
+df2 <- select(nycflights13::flights, -matches("carrier", "tailnum"))
+
+df1 <- nycflights13::flights %>%
+  select(carrier, tailnum)
+df2 <- nycflights13::flights %>%
+  select(-carrier, -tailnum)
+```
+
+Select function can also be used to reorder fields in the dataframe.
+
+4. Create a data frame df consisting of only the fields related to time.
+
+```{r, message=FALSE}
+df <- nycflights13::flights %>%
+  select(matches("time"))
+```
+
+Can use regular expressions as well.
+
+5. Create a dataframe with flight number as the first column followed by the other columns in flights.
+
+```{r, message=FALSE}
+df <- nycflights13::flights %>%
+  select(flight, everything())
+```
+
+6. Create a data frame where the column tailnum is changed to tail_number.
+
+```{r, message=FALSE}
+df <- nycflights13::flights %>%
+  rename(tail_number = tailnum)
+```
+
+rename(new_Name=old_Name)
+
+7. Create a data frame consisting of only flights originating from jfk airport and carrier is united airlines.
+
+```{r, message=FALSE}
+df <- nycflights13::flights %>%
+  filter(origin == "JFK" & carrier == "UA")
+```
+
+&& is bitwise and individualized element-wise comparison.
+Use commas instead of &
+
+8. What is the median and mean arrival delay for all flights? 
+
+What is the median and mean arrival delay originating out of jfk by carrier?
+
+```{r, message=FALSE}
+nycflights13::flights %>% 
+  summarise(mean_arr_delay = mean(arr_delay, na.rm=TRUE), median_arr_delay = median(arr_delay, na.rm=TRUE))
+```
+
+```{r, message=FALSE}
+nycflights13::flights %>%
+  filter(origin == "JFK") %>%
+  group_by(carrier) %>%
+  summarise(mean_arr_delay = mean(arr_delay, na.rm=TRUE), median_arr_delay = median(arr_delay, na.rm=TRUE))
+```
+
+na.rm=TRUE means to ignore the NA values
+
+9. What are the three days in a month with the lowest maximum departure delay, and what is it?
+
+```{r, message=FALSE}
+nycflights13::flights %>%
+  group_by(day) %>%
+  summarise(maximum_departure = max(dep_delay, na.rm=TRUE)) %>%
+  arrange(maximum_departure) %>%
+  head(3)
+```
+
+top_n(-3) would work as well
+
+10. Explain the difference in results between these two dplyr statements:
+
+```{r, message=FALSE}
+flights %>%
+  mutate(mean_dep_delay=mean(dep_delay, na.rm=TRUE))
+```
+
+```{r, message=FALSE}
+flights %>%
+  summarise(mean_dep_delay = mean(dep_delay, na.rm=TRUE))
+```
+
+The first statement adds another column to the data frame with the mean of departure delay, whereas the second statement creates a separate table that summarizes the data frame, and the only column is the mean of the departure delay.
+
+11. 
+
+```{r, message=FALSE}
+
+```
+
