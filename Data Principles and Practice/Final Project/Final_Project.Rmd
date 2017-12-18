@@ -1,0 +1,540 @@
+---
+title: "San Francisco Pedestrian Safety Review"
+author: "Laura Ye"
+date: "December 17, 2017"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message=FALSE, warning=FALSE, comment=NA)
+```
+
+## Overview
+
+The city of San Francisco has many public datasets involving city infrastructure, crime, housing, environment, etc. In my project, I aim to use a few (detailed below) to visualize the typical safety of a pedestrian in the city of San Francisco. I will combine data from location of stop signs and traffic signals to cases opened and also police department incidents to determine the likelihood of an accident involving a pedestrian for each intersection.
+
+## Data Sources
+
+Data sources were obtained from [DataSF](https://data.sfgov.org) which has a lot of data sets concerning San Francisco.
+
+[311 Cases](https://data.sfgov.org/City-Infrastructure/311-Cases/vw6y-z8j6)
+
+[Estimated Yearly Pedestrian Volume at Intersections](https://data.sfgov.org/Transportation/Estimated-Yearly-Pedestrian-Volume-at-Intersection/v62e-2jxp)
+
+[Stop Signs](https://data.sfgov.org/Transportation/Stop-Signs/wmdf-5y3x)
+
+[Traffic Signals](https://data.sfgov.org/Transportation/Traffic-Signals/inpn-273m)
+
+[Police Department Incidents](https://data.sfgov.org/Public-Safety/Police-Department-Incidents/tmnf-yvry)
+
+[Historic Police Districts (Shape files)](https://data.sfgov.org/Public-Safety/Historical-Police-Districts/embj-38bg/data)
+
+## Class Topics Used
+
+- Data wrangling and joining using dplyr
+- Exploratory Data Analysis
+- Visualizing geospatial data and mapping
+- Shiny
+
+## Import Data
+
+Let's start by importing data from the data sources mentioned above.
+
+```{r import_data, cache=TRUE}
+library(readr)
+cases_311 <- read_csv("311_Cases.csv")
+incidents <- read_csv("Police_Department_Incidents.csv")
+ped_traffic <- read_csv("Estimated_Yearly_Pedestrian_Volume_at_Intersections.csv")
+stop_signs <- read_csv("Stop_Signs.csv")
+traffic_signals <- read_csv("Traffic_Signals.csv")
+```
+
+## Tidy Data
+
+First, let's convert the column names to snake case, so that their formats are consistent.
+
+```{r fix_column_names}
+source("fix_column_names.R")
+cases_311 <- fix_column_names(cases_311)
+incidents <- fix_column_names(incidents)
+ped_traffic <- fix_column_names(ped_traffic)
+stop_signs <- fix_column_names(stop_signs)
+traffic_signals <- fix_column_names(traffic_signals)
+```
+
+Then, we want to go through each dataset to extract relevant rows and columns, and cast them into the correct format.
+
+Starting with the 311 cases, we want to filter the category, request_type and request_details column for keywords related to sidewalk, curb, street, construction, pedestrian, sign, encampment. We also only want to keep several useful columns instead of all 19 columns.
+
+```{r tidy_cases}
+library(dplyr)
+library(lubridate)
+
+keywords <- paste("sidewalk", "curb", "street", "construction", "pedestrian", "sign", "encampment", sep="|")
+cases_311_clean <- cases_311 %>%
+  select(case_id, opened, category, request_type, request_details, police_district, latitude, longitude) %>%
+  rename(id=case_id, date=opened, descript=request_details) %>%
+  filter(grepl(keywords, category, ignore.case=TRUE) | 
+           grepl(keywords, request_type, ignore.case=TRUE) | 
+           grepl(keywords, descript, ignore.case=TRUE)) %>%
+  mutate(date=mdy(substring(date, first = 1, last = 10))) %>%
+  glimpse
+```
+
+Let's do something similar incidents as well.
+
+```{r tidy_incidents}
+incidents_clean <- incidents %>%
+  select(incidnt_num, date, category, descript, pd_district, x, y) %>%
+  rename(id=incidnt_num, police_district=pd_district, longitude=x, latitude=y) %>%
+  filter(grepl(keywords, category, ignore.case=TRUE) | 
+           grepl(keywords, descript, ignore.case=TRUE)) %>%
+  mutate(date = mdy(date)) %>%
+  glimpse
+```
+
+We can combine 311 cases and Police Department Incidents into one table called events.
+
+```{r events}
+events <- full_join(incidents_clean, cases_311_clean) %>%
+  mutate(police_district = as.factor(police_district),
+         category = as.factor(category)) %>%
+  glimpse
+```
+
+Now let's shift gears and extract relevant data for Estimated Annual Pedestrian Volume, Stop Signs, and Traffic Signs.
+
+For Annual Pedestrian Volume, we need to extract longitude and latitude, and also the estimated volume.
+
+```{r tidy_rest}
+library(tidyr)
+ped_traffic_clean <- ped_traffic %>%
+  select(annual_pedestrian_volume, geom) %>%
+  extract(geom, 
+          into=c("latitude", "longitude"),
+          "(-?[0-9]*.[0-9]*),{1} {1}(-?[0-9]*.[0-9]*)",
+          remove=TRUE) %>%
+  mutate(longitude=as.numeric(longitude), latitude=as.numeric(latitude)) %>%
+  glimpse
+```
+
+For stop signs, all we need is to extract the longitude and latitude.
+
+```{r tidy_stop}
+stop_signs_clean <- stop_signs %>%
+  select(geom) %>%
+  extract(geom, 
+          into=c("latitude", "longitude"),
+          "(-?[0-9]*.[0-9]*),{1} {1}(-?[0-9]*.[0-9]*)",
+          remove=TRUE) %>%
+  mutate(longitude=as.numeric(longitude), latitude=as.numeric(latitude)) %>%
+  glimpse
+```
+
+For traffic signals, all we need is to extract the longitude and latitude.
+
+```{r tidy_traffic}
+traffic_signals_clean <- traffic_signals %>%
+  select(geom) %>%
+  extract(geom, 
+          into=c("latitude", "longitude"),
+          "(-?[0-9]*.[0-9]*),{1} {1}(-?[0-9]*.[0-9]*)",
+          remove=TRUE) %>%
+  mutate(longitude=as.numeric(longitude), latitude=as.numeric(latitude)) %>%
+  glimpse
+```
+
+## Exploratory Data Analysis
+
+### Annual Pedestrian Volume
+
+Summary of Annual Pedestrian Volume
+
+```{r eda_ped}
+summary(ped_traffic$annual_pedestrian_volume)
+```
+
+Quantiles of Annual Pedestrian Volume
+
+```{r quantile_ped}
+quantile(ped_traffic$annual_pedestrian_volume, probs = seq(0, 1, .1), na.rm = TRUE)
+```
+
+```{r hist_ped}
+library(ggplot2)
+ggplot(ped_traffic_clean, aes(annual_pedestrian_volume)) +
+  geom_histogram(bins = 15) +
+  xlab("Annual Pedestrian Volume") +
+  ylab("Frequency") +
+  ggtitle("Histogram of Annual Pedestrian Volume")
+```
+
+Visualization of Annual Pedestrian Volume
+
+```{r leaflet_ped}
+library(leaflet)
+library(RColorBrewer)
+
+pal <- colorNumeric(
+  palette = "Reds",
+  domain=ped_traffic_clean$annual_pedestrian_volume
+)
+leaflet(ped_traffic_clean) %>%
+  setView(lng = -122.4194, lat = 37.7749, zoom = 12) %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  addCircles(color=~pal(annual_pedestrian_volume)) %>%
+  addLegend(position = "bottomright", pal = pal, values = ~annual_pedestrian_volume,
+            title = "Annual Pedestrian Volume", opacity=1)
+```
+
+We see a rise in pedestrian volume near Financial District and Union Square, as well as along Mission Street, which is accessible via BART.
+
+### Events (Police Incidents and 311 Cases)
+
+Summary of ```events``` by ```police_district```
+
+```{r summary_events}
+summary(events$police_district)
+```
+
+Summary of ```events``` by ```category```
+
+```{r summary_events-_cat}
+summary(events$category)
+```
+
+Top 10 Categories
+
+```{r top_10_evt_by_cat}
+events %>% group_by(category) %>%
+  summarize(count=n()) %>% 
+  arrange(desc(count)) %>%
+  top_n(10, count)
+```
+
+Top 10 Police Districts
+
+```{r top_10_pd}
+events%>%group_by(police_district) %>%
+  summarize(count=n()) %>%
+  arrange(desc(count)) %>%
+  top_n(10, count)
+```
+
+
+```{r explore_events_pd}
+ggplot(events, aes(stat="count", x=police_district, fill=police_district)) + 
+  geom_bar() +
+  xlab("Police District") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Events by Police District") +
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Police Districts"))
+```
+
+
+```{r explore_events_cat}
+ggplot(events, aes(stat="count", x=category, fill=category)) + 
+  geom_bar() +
+  xlab("Category") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Events by Category") + 
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank()) +
+  guides(fill=guide_legend(title="Category"))
+```
+
+
+```{r explore_events_sidewalk}
+ggplot(events %>% filter(category=="Street and Sidewalk Cleaning"), aes(stat="count", x=wday(date, label=TRUE))) + 
+  geom_bar() +
+  xlab("Weekday") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Street and Sidewalk Cleaning Events by Weekday")
+```
+
+
+```{r explore_events_sidewalk_blocked}
+ggplot(events %>% filter(category=="Graffiti"), aes(stat="count", x=wday(date, label=TRUE))) + 
+  geom_bar() +
+  xlab("Weekday") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Graffit Events by Weekday")
+```
+
+
+```{r explore_events_burg}
+ggplot(events %>% filter(category=="BURGLARY"), aes(stat="count", x=wday(date, label=TRUE))) + 
+  geom_bar() +
+  xlab("Weekday") +
+  ylab("Frequency") +
+  ggtitle("Frequency of Burglary Events by Weekday")
+```
+
+### Stop Signs and Traffic Signals
+
+Map of locations of all the stop signs
+
+```{r leaflet_stop}
+stop_icon <- makeIcon(
+  iconUrl = "stop_icon.png",
+  iconWidth = 30, iconHeight = 24
+)
+
+leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(lng = -122.4194, lat = 37.7749, zoom = 12) %>%
+  addMarkers(data = stop_signs_clean, icon = stop_icon, clusterOptions = markerClusterOptions())
+```
+
+Map of locations of all the traffic signals
+
+```{r leaflet_traffic}
+traffic_icon <- makeIcon(
+  iconUrl = "traffic_icon.png",
+  iconWidth = 30, iconHeight = 24
+)
+
+leaflet() %>% 
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(lng = -122.4194, lat = 37.7749, zoom = 12) %>%
+  addMarkers(data = traffic_signals_clean, icon = traffic_icon, clusterOptions = markerClusterOptions())
+```
+
+## Visualizing geospatial data and mapping
+
+To start, let's import shapefiles of the police districts to help us visualize the data by police district. I am also going to colorize each police ditrict based on the number of events they have had.
+
+```{r import_sp}
+library(rgdal)
+library(spdplyr)
+
+pd <- readOGR(dsn = "./Historical Police Districts.geojson",
+                  layer = "Historical Police Districts", verbose = FALSE)
+
+pd@data <- pd@data %>% fix_column_names
+```
+
+Before colorizing, we need to join the number of events by each district with the shape file so that each polygon can be associated with number of events.
+
+```{r chloropleth_pd}
+df <- events %>% group_by(police_district) %>% 
+  summarise(total = n()) %>% rename(district=police_district)
+
+pd@data <- left_join(pd@data, df) %>% glimpse
+
+bins <- seq(from=0,to=round(max(pd@data$total)), by=max(pd@data$total)/9)
+pal <- colorBin("Greens", domain = pd@data$total, bins = bins)
+
+m <- leaflet(width="100%") %>%
+  addProviderTiles(providers$CartoDB.Positron) %>%
+  setView(lng = -122.4194, lat = 37.7749, zoom = 12) %>%
+  addPolygons(
+  data=pd,
+  fillColor = pal(pd@data$total),
+  weight = 1,
+  opacity = 0.5,
+  color = "black",
+  dashArray = "3",
+  fillOpacity = 0.5,
+  popup = paste(pd@data$district, " : ", pd@data$total, "Events", sep=" "),
+  highlight = highlightOptions(
+    weight = 5,
+    color = "#666",
+    dashArray = "",
+    fillOpacity = 0.5,
+    bringToFront = FALSE)) %>% 
+  
+  #Add a legend
+  addLegend(pal = pal, 
+            values = pd@data$total, 
+            opacity = 0.7, 
+            title = "Total Events", 
+            position = "bottomleft")
+m
+```
+
+Let's add annual pedestrian volume to the map.
+
+```{r map_ped}
+pal_ped <- colorNumeric(
+  palette = "Reds",
+  domain=ped_traffic_clean$annual_pedestrian_volume
+)
+
+m <- m %>%
+  addCircles(data=ped_traffic_clean, 
+             lng = ~longitude, lat = ~latitude, 
+             popup = paste(ped_traffic_clean$annual_pedestrian_volume, "Pedestrians/Year", sep=" "),
+             color=~pal_ped(ped_traffic_clean$annual_pedestrian_volume)) %>%
+  addLegend(position = "topright", pal = pal_ped, values = ped_traffic_clean$annual_pedestrian_volume,
+            title = "Annual Pedestrian Volume", opacity=0.5)
+m
+```
+
+## Shiny
+
+Now that we have a functioning map, let's take this to Shiny so that we can filter events using the following criteria:
+
+- Date Range 
+- Category
+
+I attempted to deploy the Shiny app at the webpage below, however, the map does not render because Shiny ran out of memory and I wasn't able to upgrade to the basic plan or higher. The app does run successfully locally.
+
+[https://yelaura.shinyapps.io/sf_pedestrians/](https://yelaura.shinyapps.io/sf_pedestrians/)
+
+Here is the source code for the Shiny app.
+
+```server.R```
+
+```{r server, eval=FALSE, echo=TRUE}
+library(shiny)
+library(leaflet)
+library(readr)
+library(dplyr)
+library(lubridate)
+library(tidyr)
+library(rgdal)
+library(spdplyr)
+
+cases_311 <- read_csv("311_Cases.csv")
+incidents <- read_csv("Police_Department_Incidents.csv")
+ped_traffic <- read_csv("Estimated_Yearly_Pedestrian_Volume_at_Intersections.csv")
+
+source("fix_column_names.R")
+cases_311 <- fix_column_names(cases_311)
+incidents <- fix_column_names(incidents)
+ped_traffic <- fix_column_names(ped_traffic)
+
+keywords <- paste("sidewalk", "curb", "street", "construction", "pedestrian", "sign", "encampment", sep="|")
+
+cases_311_clean <- cases_311 %>%
+  select(case_id, opened, category, request_type, request_details, police_district, latitude, longitude) %>%
+  rename(id=case_id, date=opened, descript=request_details) %>%
+  filter(grepl(keywords, category, ignore.case=TRUE) | 
+           grepl(keywords, request_type, ignore.case=TRUE) | 
+           grepl(keywords, descript, ignore.case=TRUE)) %>%
+  mutate(date=mdy(substring(date, first = 1, last = 10)))
+
+incidents_clean <- incidents %>%
+  select(incidnt_num, date, category, descript, pd_district, x, y) %>%
+  rename(id=incidnt_num, police_district=pd_district, longitude=x, latitude=y) %>%
+  filter(grepl(keywords, category, ignore.case=TRUE) | 
+           grepl(keywords, descript, ignore.case=TRUE)) %>%
+  mutate(date = mdy(date))
+
+events <- full_join(incidents_clean, cases_311_clean) %>%
+  mutate(police_district = as.factor(police_district),
+         category = as.factor(category))
+
+ped_traffic_clean <- ped_traffic %>%
+  select(annual_pedestrian_volume, geom) %>%
+  extract(geom,
+          into=c("latitude", "longitude"),
+          "(-?[0-9]*.[0-9]*),{1} {1}(-?[0-9]*.[0-9]*)",
+          remove=TRUE) %>%
+  mutate(longitude=as.numeric(longitude), latitude=as.numeric(latitude)) %>%
+  sample_frac(0.8)
+
+pd <- readOGR(dsn = "./Historical Police Districts.geojson",
+              layer = "Historical Police Districts", verbose = FALSE)
+
+pd@data <- pd@data %>% fix_column_names
+
+shinyServer(function(input, output) {
+   
+  output$showThePlot <- renderLeaflet({
+    #filter out events by category and date
+    df <- events %>% 
+      filter(
+        category == input$catSelector,
+        date >= ymd(input$dateRange[1]) & date <= ymd(input$dateRange[2])
+      ) %>%
+      group_by(police_district) %>% 
+      summarise(total = n()) %>% 
+      rename(district=police_district)
+
+      pd@data <- left_join(pd@data, df)
+      
+      pal <- colorNumeric(
+        palette = "Greens",
+        domain=pd@data$total
+      )
+      
+      pal_ped <- colorNumeric(
+        palette = "Reds",
+        domain=ped_traffic_clean$annual_pedestrian_volume
+      )
+      
+      leaflet() %>%
+        addProviderTiles(providers$CartoDB.Positron) %>%
+        setView(lng = -122.4194, lat = 37.7749, zoom = 12) %>%
+        addCircles(data=ped_traffic_clean,
+                   lng = ~longitude, lat = ~latitude,
+                   popup = paste(ped_traffic_clean$annual_pedestrian_volume, "Pedestrians/Year", sep=" "),
+                   color=~pal_ped(ped_traffic_clean$annual_pedestrian_volume)) %>%
+        addLegend(position = "topright", pal = pal_ped, values = ped_traffic_clean$annual_pedestrian_volume,
+                  title = "Annual Pedestrian Volume", opacity=0.5) %>%
+        
+        addPolygons(
+          data=pd,
+          fillColor = pal(pd@data$total),
+          weight = 1,
+          opacity = 0.5,
+          color = "black",
+          dashArray = "3",
+          fillOpacity = 0.5,
+          popup = paste(pd@data$district, " : ", pd@data$total, "Events", sep=" "),
+          highlight = highlightOptions(
+            weight = 5,
+            color = "#666",
+            dashArray = "",
+            fillOpacity = 0.5,
+            bringToFront = FALSE)) %>% 
+        addLegend(pal = pal, 
+                  values = pd@data$total, 
+                  opacity = 0.7, 
+                  title = "Total Events", 
+                  position = "bottomleft")
+    })
+  
+  output$catSelector <- renderUI({
+    selectInput("catSelector", 
+                "Choose Category of Events:", 
+                as.list(levels(events$category)),
+                selected = "BURGLARY") 
+  })
+  
+})
+```
+
+```ui.R```
+
+```{r ui, eval=FALSE, echo=TRUE}
+library(shiny)
+library(leaflet)
+
+shinyUI(fluidPage(
+  
+  titlePanel("San Francisco Pedestrian Safety"),
+  mainPanel(
+    dateRangeInput('dateRange',
+                   label = 'Date Range Input: mm/dd/yyyy',
+                   start = Sys.Date() - 2 * 365, end = Sys.Date(),
+                   separator = " - ",
+                   format = "mm/dd/yyyy"
+    ),
+    uiOutput("catSelector"),
+    leafletOutput("showThePlot")
+  )
+))
+```
+
+## Current and Future Applications
+
+This Shiny application can be useful for visualizing pedestrian route information. Pedestrians can use the Shiny app to determine how safe their neighborhood is, based on how many events there were in the past, and also by the amount of foot traffic (pedestrian volume) in the intersections near them.
+
+In future applications, the data sets and techniques used in this project may be used to improve pedestrian walking directions on a map platform. This information may also be useful when buying real estate or apartment-hunting.
