@@ -1,0 +1,87 @@
+---
+title: "Analysis of Eye of Argon"
+author: "Laura Ye"
+date: "January 15, 2018"
+output:
+  html_document:
+    df_print: paged
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment = NA, encoding='ASCII')
+```
+
+## Data Source
+
+Source of this analysis originates from a book by Jim Theis called "The Eye of Argon".
+
+```{r link}
+link_to_book <- 'https://ansible.uk/misc/eyeargon.html'
+```
+
+The book is stored as an html file and we will use ```RCurl``` to retrieve and ```XML``` to extract the text from this html file.
+
+```{r extract}
+library(RCurl)
+library(XML)
+
+#download html
+html <- getURL(link_to_book, followlocation=TRUE)
+
+#parse html
+doc <- htmlParse(html, asText=TRUE)
+plain_text <- xpathSApply(doc,
+                          "//text()[not(ancestor::script)][not(ancestor::style)][not(ancestor::noscript)][not(ancestor::form)]", 
+                          xmlValue)
+plain_text <- iconv(plain_text, to = "ASCII//TRANSLIT")
+```
+
+## Cleaning the Data
+
+To clean the data, we have to do the following:
+
+- remove punctuation and invalid characters
+
+- remove numbers
+
+- remove empty strings
+
+- convert to lowercase
+
+- convert words to their stem (i.e. learned -> learn)
+
+```{r clean}
+#split strings into words and remove punctuation and numbers and invalid chars
+words <- unlist(strsplit(plain_text, " |\r|\n|[-!?.,;:\\\"]+|[1234567890]+"))
+
+#remove empty strings
+words <- words [words != ""]
+
+#convert to lowercase
+words <- tolower(words)
+
+library(SnowballC)
+#convert to stem
+word_stems <- wordStem(words, language="english")
+```
+
+Now that we've cleaned the data, we have a list of words appear in the story. Here is a preview of the list of words and word stems we will use to feed into the word cloud.
+
+```{r preview_words}
+words[1:25]
+word_stems[1:25]
+```
+
+## Word Cloud
+
+```{r word_cloud}
+library(wordcloud)
+
+wordcloud(words, max.words=100, random.order=FALSE)
+wordcloud(word_stems, max.words=100, random.order=FALSE)
+```
+
+## Insights
+
+We can see from the word cloud that "grignr" occurs the most frequently in this text, which is reasonable considering that the main character's name is Grignr. Other most commonly used words were upon, face, arms, head, face, hand, soldier, etc.  This is likely because the main character Grignr is very prone to describing people's features.
