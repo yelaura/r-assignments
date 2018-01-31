@@ -1,0 +1,120 @@
+---
+title: "Assignment 2"
+author: "Laura Ye"
+output:
+  html_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, comment=NA, warning = FALSE, message = FALSE)
+```
+
+### Exercise 1 
+
+One downside of the linear model is that it is sensitive to unusual values because the distance incorporates a squared term. Fit a linear model to the simulated data below, and visualise the results. Rerun a few times to generate different simulated datasets. What do you notice about the model?
+
+#### Solution
+
+First generate and visualize our simulated data.
+
+```{r}
+library(tidyverse)
+set.seed(620)
+sim1a <- tibble(
+  x = rep(1:10, each=3),
+  y = x * 1.5 + 6 + rt(length(x), df=2)
+)
+
+library(ggplot2)
+g <- ggplot(sim1a, aes(x=x, y=y)) + geom_point()
+g
+```
+
+To confirm, we do see an usual data point for x = 2 and y=-5.4.
+
+Next step is to fit a linear model.
+
+```{r}
+g <- g + stat_smooth(method="lm", se=FALSE)
+g
+```
+
+Setting different seeds, we can re-generate the simulated data and visualize the fit each time the dataset is re-generated.
+
+```{r}
+seeds <- c(911, 422, 713)
+
+for (seed in seeds){
+  set.seed(seed)
+  sim1a_recur <- tibble(
+    x = rep(1:10, each=3),
+    y = x * 1.5 + 6 + rt(length(x), df=2)
+  )
+  print(ggplot(sim1a_recur, aes(x=x, y=y)) + geom_point() +
+    stat_smooth(method="lm", se=FALSE))
+}
+```
+
+#### Insights
+
+For each iteration, the linear model still adheres to the main dataset. However, without the outlier, the linear model would be slightly adjusted, most likely in the slope coefficient.
+
+### Exercise 2
+
+One way to make linear models more robust is to use a different distance measure. 
+
+For example, instead of root-mean-squared distance, you could use mean-absolute distance:
+
+```{r}
+measure_distance <- function(mod, data) {
+  diff <- data$y - predict(mod, data)
+  mean(abs(diff))
+}
+```
+
+Use optim() to fit this model to the simulated data above and compare it to the linear model.
+
+#### Solution
+
+Instead of using this function, I will modify this function as such:
+
+```{r}
+mean.abs.diff <- function(data, par){
+  with(data, mean(abs(par[1] + par[2] * x - y)))
+}
+```
+
+This new function will be fed into ```optim``` to determine best linear fit.
+
+```{r}
+mod <- optim(par=c(0,1), mean.abs.diff, data=sim1a)
+mod
+```
+
+We will predict the results from ```optim``` with the original dataset so we can visualize both fits. Since the result of ```optim``` is stored as a list, we cannot use ```augment``` or ```predict```.
+
+```{r}
+lm_fit <- lm(y~x, sim1a)
+
+sim1a_optim <- sim1a %>%
+  mutate(optim_results = mod$par[1] + mod$par[2]*x) %>%
+  mutate(lm_results = lm_fit$coefficients[[1]] + lm_fit$coefficients[[2]]*x)
+```
+
+Let's visualize the two different linear fits.
+
+```{r}
+ggplot(sim1a_optim) + 
+  geom_point(aes(x=x,y=y)) +
+  geom_smooth(aes(x=x,y=lm_results, color="blue")) +
+  geom_smooth(aes(x=x, y=optim_results, color="red")) + 
+  labs(color="Distance Used") +
+  scale_color_manual(
+    labels = c("Root-Mean-Squared", "Mean-Absolute"), 
+    values=c("blue", "red"))
+```
+
+#### Insights
+
+From the simulated data, we can tell that the linear model using mean absolute difference has a lower slope coefficient, and the two linear models intersect around x = 7.5.
