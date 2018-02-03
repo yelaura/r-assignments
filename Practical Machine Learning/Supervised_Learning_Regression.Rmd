@@ -1,0 +1,168 @@
+---
+title: "R Notebook"
+output: html_notebook
+author: "Laura Ye"
+---
+
+Notes for DataCamp Module: Supervised Learning in R: Regression
+
+# What is Regression?
+
+Different from classification because there is a numeric outcome.
+Examples: How many units will we sell? What price will the customer pay?
+Non-examples: Will this customer buy our product? Yes/No?
+
+Regression Task
+Goal: Predict Temperature by measuring Cricket Chirp Rate
+Fit a line to the data and expected value is on the line
+
+Simplest Regression Methods: Linear Regression ```lm()```
+
+Ways to learn more about the model:
+```summary(model_name)``` 
+```broom::glance(model_name)```
+```sigr::wrapFTest(model_name)```
+
+## Exercise
+
+The task is to predict the rate of ```female unemployment``` from the observed rate of ```male unemployment```. The outcome is ```female_unemployment```, and the input is ```male_unemployment```.
+
+The sign of the variable coefficient tells you whether the outcome increases (+) or decreases (-) as the variable increases.
+
+```{r}
+# unemployment is loaded in the workspace
+summary(unemployment)
+
+# Define a formula to express female_unemployment as a function of male_unemployment
+fmla <- female_unemployment ~ male_unemployment
+
+# Print it
+fmla
+
+# Use the formula to fit a model: unemployment_model
+unemployment_model <- lm(fmla, unemployment)
+
+# Print it
+unemployment_model
+```
+
+Coefficient for ```male_unemployment``` is positive so the outcome (```female_unemeployment```) increases as the input increases.
+
+## Examine the model
+
+Let's look at the model unemployment_model that you have just created. There are a variety of different ways to examine a model; each way provides different information. We will use summary(), broom::glance(), and sigr::wrapFTest().
+
+```{r}
+# broom and sigr are already loaded in your workspace
+# Print unemployment_model
+unemployment_model
+
+# Call summary() on unemployment_model to get more details
+summary(unemployment_model)
+
+# Call glance() on unemployment_model to see the details in a tidier form
+glance(unemployment_model)
+
+# Call wrapFTest() on unemployment_model to see the most relevant details
+wrapFTest(unemployment_model)
+```
+
+## Predicting from Model
+
+In this exercise, you will use your unemployment model unemployment_model to make predictions from the unemployment data, and compare predicted female unemployment rates to the actual observed female unemployment rates on the training data, unemployment. You will also use your model to predict on the new data in newrates, which consists of only one observation, where male unemployment is 5%.
+
+```{r}
+# unemployment is in your workspace
+summary(unemployment)
+
+# newrates is in your workspace
+newrates
+
+# Predict female unemployment in the unemployment data set
+unemployment$prediction <-  predict(unemployment_model, newdata=unemployment)
+
+# load the ggplot2 package
+library(ggplot2)
+
+# Make a plot to compare predictions to actual (prediction on x axis). 
+ggplot(unemployment, aes(x = prediction, y = female_unemployment)) + 
+  geom_point() +
+  geom_abline(color = "blue")
+
+# Predict female unemployment rate when male unemployment is 5%
+pred <- predict(unemployment_model, newdata=newrates)
+# Print it
+pred
+```
+
+We can use ```predict``` with newdata=old data frame.
+
+## Multivariate Linear Regression
+
+In this exercise, you will work with the blood pressure dataset, and model blood_pressure as a function of weight and age.
+
+```{r}
+# bloodpressure is in the workspace
+summary(bloodpressure)
+
+# Create the formula and print it
+fmla <- blood_pressure ~ age + weight
+fmla
+
+# Fit the model: bloodpressure_model
+bloodpressure_model <- lm(fmla, bloodpressure)
+
+# Print bloodpressure_model and call summary() 
+bloodpressure_model
+summary(bloodpressure_model)
+```
+
+Now you will make predictions using the blood pressure model bloodpressure_model that you fit in the previous exercise.
+
+You will also compare the predictions to outcomes graphically
+
+```{r}
+# bloodpressure is in your workspace
+summary(bloodpressure)
+
+# bloodpressure_model is in your workspace
+bloodpressure_model
+
+# predict blood pressure using bloodpressure_model :prediction
+bloodpressure$prediction <- predict(bloodpressure_model, bloodpressure)
+
+# plot the results
+ggplot(bloodpressure, aes(x=prediction, y=blood_pressure)) + 
+    geom_point() +
+    geom_abline(color = "blue")
+```
+
+Results are fairly close to the line of perfect prediction indicating that the model fits the training data well.
+
+## Advantages and Limitations
+
+Pros
+- Easy to fit and to apply
+- Concise
+- Less prone to overfitting
+- Interpretable
+
+Cons
+- Can only express linear and additive relationships
+- Cannot predict highly complex relationships
+
+Collinearity - when input variables are partially correlated
+- Coefficients might change sign
+- Not too much of an issue
+
+High collinearity
+- Coefficients are too large
+- Unstable model
+
+# Training and Evaluating Regression Models
+
+# Issues to Consider
+
+# Non-Linar Responses
+
+# Tree-based Methods
