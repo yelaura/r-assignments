@@ -161,8 +161,668 @@ High collinearity
 
 # Training and Evaluating Regression Models
 
+Plotting Ground Truth vs Predictions
+-Well fitting model - x=y runs through center of points AKA "line of perfect prediction"
+-Otherwise, points are all on onside of x=y line, systematic errors
+
+Residual Plot - residual vs prediction
+-Should be evenly distributed between positive and negative
+
+Gain Curve - measures how well model sorts the outcome (classification?)
+-x-axis - houses in model-sorted order
+-y-axis - fraction of total accumulated home sales
+-wizard curve - perfect curve
+-Where Gain curve aligns perfectly with the wizard curve is a good prediction
+-Can also be used to predict probabilities
+
+## Exercises
+
+In this exercise you will graphically evaluate the unemployment model, unemployment_model, that you fit to the unemployment data in the previous chapter. Recall that the model predicts female_unemployment from male_unemployment.
+
+```{r}
+# unemployment is in the workspace
+summary(unemployment)
+
+# unemployment_model is in the workspace
+summary(unemployment_model)
+
+# Make predictions from the model
+unemployment$predictions <- predict(unemployment_model, unemployment)
+
+# Fill in the blanks to plot predictions (on x-axis) versus the female_unemployment rates
+ggplot(unemployment, aes(x = predictions, y = female_unemployment)) + 
+  geom_point() + 
+  geom_abline()
+
+# Calculate residuals
+unemployment$residuals <- unemployment$female_unemployment - unemployment$predictions
+
+# Fill in the blanks to plot predictions (on x-axis) versus the residuals
+ggplot(unemployment, aes(x = predictions, y = residuals)) + 
+  geom_pointrange(aes(ymin = 0, ymax = residuals)) + 
+  geom_hline(yintercept = 0, linetype = 3) + 
+  ggtitle("residuals vs. linear model prediction")
+```
+
+Note: To calculate residuals, you need to compute the ground truth (actual value) minus the prediction.
+
+### Gain Curve
+
+In the previous exercise you made predictions about female_unemployment and visualized the predictions and the residuals. Now, you will also plot the gain curve of the unemployment_model's predictions against actual female_unemployment using the WVPlots::GainCurvePlot() function.
+
+For situations where order is more important than exact values, the gain curve helps you check if the model's predictions sort in the same order as the true outcome.
+
+```{r}
+# unemployment is in the workspace (with predictions)
+summary(unemployment)
+
+# unemployment_model is in the workspace
+summary(unemployment_model)
+
+# Load the package WVPlots
+library(WVPlots)
+
+# Plot the Gain Curve
+GainCurvePlot(unemployment, "predictions", "female_unemployment", "Unemployment model")
+```
+
+A relative gini coefficient close to one shows that the model correctly sorts high unemployment situations from lower ones.
+
+### Root Mean Squared Error
+
+RMSE = sqrt(mean((pred-y)^2))
+pred-y is the error or residuals
+mean value of (pred-y)^2
+
+Natural metric because lm aims to minimize this error by default
+
+Compare RMSE to standard deviation of outcome
+- RMSE < sd means model is better than taking average
+
+#### Exercise
+
+In this exercise you will calculate the RMSE of your unemployment model.
+
+```{r}
+# unemployment is in the workspace
+summary(unemployment)
+
+# For convenience put the residuals in the variable res
+res <- unemployment$residuals
+
+# Calculate RMSE, assign it to the variable rmse and print it
+print(rmse <- sqrt(mean(res^2)))
+
+# Calculate the standard deviation of female_unemployment and print it
+print(sd_unemployment <- sd(unemployment$female_unemployment))
+```
+
+An RMSE much smaller than the outcome's standard deviation suggests a model that predicts well.
+
+### R Squared
+
+Measure of how well model fits the data (0 to 1)
+
+R^2 = 1- Residual sum of squares / total sum of squares
+
+Residual sum of squares = variance from model (sum (y-predictions)^2)
+
+Total sum of squares = variance of data (sum (y-y_mean)^2)
+
+summary() and glance() will return the r.squared value
+
+For linear models, r.squared is the square of the correlation
+
+#### Exercise
+
+##### Calculate R-Squared
+
+Now that you've calculated the RMSE of your model's predictions, you will examine how well the model fits the data: that is, how much variance does it explain. You can do this using R2.
+
+```{r}
+# unemployment is in your workspace
+summary(unemployment)
+
+# unemployment_model is in the workspace
+summary(unemployment_model)
+
+# Calculate mean female_unemployment: fe_mean. Print it
+print(fe_mean <- mean(unemployment$female_unemployment))
+
+# Calculate total sum of squares: tss. Print it
+print(tss <- sum((unemployment$female_unemployment - fe_mean)^2))
+
+# Calculate residual sum of squares: rss. Print it
+(rss <- sum(unemployment$residuals^2))
+
+# Calculate R-squared: rsq. Print it. Is it a good fit?
+(rsq <- 1-rss/tss)
+
+# Get R-squared from glance. Print it
+(rsq_glance <- glance(unemployment_model)$r.squared)
+```
+
+Encompassing a variable assignment in () will also print the result without having to use print().
+
+##### Correlation and R-squared
+
+The linear correlation of two variables, x and y, measures the strength of the linear relationship between them.
+
+```{r}
+# unemployment is in your workspace
+summary(unemployment)
+
+# unemployment_model is in the workspace
+summary(unemployment_model)
+
+# Get the correlation between the prediction and true outcome: rho and print it
+(rho <- cor(unemployment$female_unemployment, unemployment$predictions))
+
+# Square rho: rho2 and print it
+(rho2 <- rho^2)
+
+# Get R-squared from glance and print it
+(rsq_glance <- glance(unemployment_model)$r.squared)
+```
+
+### Properly Training a Model
+
+Models perform better on training than future data.
+
+Split data to train and test - 66/30 split
+
+Model should perform about the same for both models
+
+Cross-Validation - preferred when data is not large enough to split off a test set
+
+Train A + B to predict C
+Train B + C to predict A
+Train A + C to predict B
+
+Cross-validation plan:
+- kWayCrossValidation
+- number of rows, number of folds (splits)
+- returns indices for training and testing for each fold
+
+If estimated model performs okay, then use the whole model as training data
+
+#### Exercises
+
+For the next several exercises you will use the mpg data from the package ggplot2. The data describes the characteristics of several makes and models of cars from different years. The goal is to predict city fuel efficiency from highway fuel efficiency.
+
+```{r}
+# mpg is in the workspace
+summary(mpg)
+dim(mpg)
+
+# Use nrow to get the number of rows in mpg (N) and print it
+(N <- nrow(mpg))
+
+# Calculate how many rows 75% of N should be and print it
+# Hint: use round() to get an integer
+(target <- round(0.75*N))
+
+# Create the vector of N uniform random variables: gp
+gp <- runif(N)
+
+# Use gp to create the training set: mpg_train (75% of data) and mpg_test (25% of data)
+mpg_train <- mpg[gp< 0.75,]
+mpg_test <- mpg[gp>= 0.75,]
+
+# Use nrow() to examine mpg_train and mpg_test
+nrow(mpg_train)
+nrow(mpg_test)
+```
+
+Now that you have split the mpg dataset into mpg_train and mpg_test, you will use mpg_train to train a model to predict city fuel efficiency (cty) from highway fuel efficiency (hwy).
+
+```{r}
+# mpg_train is in the workspace
+summary(mpg_train)
+
+# Create a formula to express cty as a function of hwy: fmla and print it.
+(fmla <- cty ~ hwy)
+
+# Now use lm() to build a model mpg_model from mpg_train that predicts cty from hwy 
+mpg_model <- lm(fmla, mpg_train)
+
+# Use summary() to examine the model
+summary(mpg_model)
+```
+
+Now you will test the model mpg_model on the test data, mpg_test. Functions rmse() and r_squared() to calculate RMSE and R-squared have been provided for convenience:
+
+rmse(predcol, ycol)
+r_squared(predcol, ycol)
+
+```{r}
+# Examine the objects in the workspace
+ls.str()
+
+# predict cty from hwy for the training set
+mpg_train$pred <- predict(mpg_model, mpg_train)
+
+# predict cty from hwy for the test set
+mpg_test$pred <- predict(mpg_model, mpg_test)
+
+# Evaluate the rmse on both training and test data and print them
+(rmse_train <- rmse(mpg_train$pred, mpg_train$cty))
+(rmse_test <- rmse(mpg_test$pred, mpg_test$cty))
+
+
+# Evaluate the r-squared on both training and test data.and print them
+(rsq_train <- r_squared(mpg_train$pred, mpg_train$cty))
+(rsq_test <- r_squared(mpg_test$pred, mpg_test$cty))
+
+# Plot the predictions (on the x-axis) against the outcome (cty) on the test data
+ggplot(mpg_test, aes(x = pred, y = cty)) + 
+  geom_point() + 
+  geom_abline()
+```
+
+Create Cross validation plan
+
+There are several ways to implement an n-fold cross validation plan. In this exercise you will create such a plan using vtreat::kWayCrossValidation(), and examine it.
+
+```{r}
+# Load the package vtreat
+library(vtreat)
+
+# mpg is in the workspace
+summary(mpg)
+
+# Get the number of rows in mpg
+nRows <- nrow(mpg)
+
+# Implement the 3-fold cross-fold plan with vtreat
+splitPlan <- kWayCrossValidation(nRows, 3, NULL, NULL)
+
+# Examine the split plan
+str(splitPlan)
+```
+
+Evaluate a modeling procedure using n-fold cross-validation
+
+In this exercise you will use splitPlan, the 3-fold cross validation plan from the previous exercise, to make predictions from a model that predicts mpg$cty from mpg$hwy.
+
+```{r}
+# mpg is in the workspace
+summary(mpg)
+
+# splitPlan is in the workspace
+str(splitPlan)
+
+# Run the 3-fold cross validation plan from splitPlan
+k <- 3 # Number of folds
+mpg$pred.cv <- 0 
+for(i in 1:k) {
+  split <- splitPlan[[i]]
+  model <- lm(cty~hwy, data = mpg[split$train,])
+  mpg$pred.cv[split$app] <- predict(model, newdata = mpg[split$app, ])
+}
+
+# Predict from a full model
+mpg$pred <- predict(lm(cty ~ hwy, data = mpg))
+
+# Get the rmse of the full model's predictions
+rmse(mpg$pred, mpg$cty)
+
+# Get the rmse of the cross-validation predictions
+rmse(mpg$pred.cv, mpg$cty)
+```
+
+Cross-validation validates the modeling process, not the model.
+
 # Issues to Consider
 
-# Non-Linar Responses
+## Categorical Variables
+
+Categorical variables have a finite number of values
+
+### "One-hot-encoding"
+
+model.matrix shows how categorical variables are split up
+- N-1 indicators
+- one is used as a reference value
+
+Cons
+- too many levels can be a problem (e.g. zip codes - 40000)
+- don't hash with geometric methods (e.g. use 1,2,3 to differentiate 3 categories)
+
+#### Exercises
+
+For this exercise you will call model.matrix() to examine how R represents data with both categorical and numerical inputs for modeling. The dataset flowers (derived from the Sleuth3 package) is loaded into your workspace. 
+
+```{r}
+# Call str on flowers to see the types of each column
+str(flowers)
+
+# Use unique() to see how many possible values Time takes
+unique(flowers$Time)
+
+# Build a formula to express Flowers as a function of Intensity and Time: fmla. Print it
+(fmla <- as.formula("Flowers ~ Intensity + Time"))
+
+# Use fmla and model.matrix to see how the data is represented for modeling
+mmat <- model.matrix(fmla, data=flowers)
+
+# Examine the first 20 lines of flowers
+head(flowers, 20)
+
+# Examine the first 20 lines of mmat
+head(mmat, 20)
+```
+
+Use head(data, n) to print out the first n rows
+
+Modeling with categorical inputs
+
+For this exercise you will fit a linear model to the flowers data, to predict Flowers as a function of Time and Intensity.
+
+```{r}
+# flowers in is the workspace
+str(flowers)
+
+# fmla is in the workspace
+fmla
+
+# Fit a model to predict Flowers from Intensity and Time : flower_model
+flower_model <- lm(fmla, flowers)
+
+# Use summary on mmat to remind yourself of its structure
+summary(mmat)
+
+# Use summary to examine flower_model 
+summary(flower_model)
+
+# Predict the number of flowers on each plant
+flowers$predictions <- predict(flower_model, flowers)
+
+# Plot predictions vs actual flowers (predictions on x-axis)
+ggplot(flowers, aes(x = predictions, y = Flowers)) + 
+  geom_point() +
+  geom_abline(color = "blue") 
+```
+
+## Variable Interactions
+
+Additive Relationship
+
+Interaction is when simultaneous influence of two variables on the outcome is not additive
+
+If the slopes of the line between the relationships are the same, then no interaction.
+
+If the slopes are different, then there is a variable interaction.
+
+Use : or I(a*b) to express interaction in a formula
+
+### Exercises
+
+In this exercise you will use interactions to model the effect of gender and gastric activity on alcohol metabolism.
+
+```{r}
+## alcohol is in the workspace
+summary(alcohol)
+
+# Create the formula with main effects only
+(fmla_add <- as.formula("Metabol ~ Gastric + Sex") )
+
+# Create the formula with interactions
+(fmla_interaction <- as.formula("Metabol ~ Gastric + Gastric:Sex") )
+
+# Fit the main effects only model
+model_add <- lm(fmla_add, alcohol)
+
+# Fit the interaction model
+model_interaction <- lm(fmla_interaction, alcohol)
+
+# Call summary on both models and compare
+summary(model_add)
+summary(model_interaction)
+```
+
+In this exercise, you will compare the performance of the interaction model you fit in the previous exercise to the performance of a main-effects only model. Because this data set is small, we will use cross-validation to simulate making predictions on out-of-sample data.
+
+```{r}
+# alcohol is in the workspace
+summary(alcohol)
+
+# Both the formulae are in the workspace
+fmla_add
+fmla_interaction
+
+# Create the splitting plan for 3-fold cross validation
+set.seed(34245)  # set the seed for reproducibility
+splitPlan <- kWayCrossValidation(nrow(alcohol), 3, NULL, NULL)
+
+# Sample code: Get cross-val predictions for main-effects only model
+alcohol$pred_add <- 0  # initialize the prediction vector
+for(i in 1:3) {
+  split <- splitPlan[[i]]
+  model_add <- lm(fmla_add, data = alcohol[split$train, ])
+  alcohol$pred_add[split$app] <- predict(model_add, newdata = alcohol[split$app, ])
+}
+
+# Get the cross-val predictions for the model with interactions
+alcohol$pred_interaction <- 0 # initialize the prediction vector
+for(i in 1:3) {
+  split <- splitPlan[[i]]
+  model_interaction <- lm(fmla_interaction, data = alcohol[split$train, ])
+  alcohol$pred_interaction[split$app] <- predict(model_interaction, newdata = alcohol[split$app, ])
+}
+
+# Get RMSE
+alcohol %>% 
+  gather(key = modeltype, value = pred, pred_add, pred_interaction) %>%
+  mutate(residuals = Metabol-pred) %>%      
+  group_by(modeltype) %>%
+  summarize(rmse = sqrt(mean(residuals^2)))
+```
+
+Cross-validation confirms that a model with interaction will likely give better predictions.
+
+## Transforming the response before modeling (transform output)
+
+Log Transform for Monetary Data
+- lognormally distributed - taking the log of the response will produce normally distributed results
+- long tail
+- wide dynamic range
+- mean > median
+- predicting mean will overpredict typical values
+
+Procedure
+1. Log the outcome and fit a model
+2. Make the predictions in log space
+3. Transform predictions to outcome space
+
+Multiplicative Errors
+- Size of the error is relative to size of the outcome
+- Reducing multiplicative error reduces relative error when log transforming
+
+RMS Relative Error
+- Model will often have larger RMSE
+
+Modelling Income directly vs log(income)
+- log(income) smaller relative error but large RMSE
+
+### Exercises
+
+In this exercise, you will compare relative error to absolute error.
+
+Relative error = (pred-y)/y
+
+```{r}
+# fdata is in the workspace
+summary(fdata)
+
+# Examine the data: generate the summaries for the groups large and small:
+fdata %>% 
+    group_by(label) %>%     # group by small/large purchases
+    summarize(min  = min(y),   # min of y
+              mean = mean(y),   # mean of y
+              max  = max(y))   # max of y
+
+# Fill in the blanks to add error columns
+fdata2 <- fdata %>% 
+         group_by(label) %>%       # group by label
+           mutate(residual = pred-y,  # Residual
+                  relerr   = (pred-y)/y)  # Relative error
+
+# Compare the rmse and rmse.rel of the large and small groups:
+fdata2 %>% 
+  group_by(label) %>% 
+  summarize(rmse     = sqrt(mean(residual^2)),   # RMSE
+            rmse.rel = sqrt(mean(relerr^2)))   # Root mean squared relative error
+            
+# Plot the predictions for both groups of purchases
+ggplot(fdata2, aes(x = pred, y = y, color = label)) + 
+  geom_point() + 
+  geom_abline() + 
+  facet_wrap(~ label, ncol = 1, scales = "free") + 
+  ggtitle("Outcome vs prediction")
+```
+
+Notice from this example how a model with larger RMSE might still be better, if relative errors are more important than absolute errors.
+
+Modeling log-transformed monetary output
+
+In this exercise, you will practice modeling on log-transformed monetary output, and then transforming the "log-money" predictions back into monetary units. 
+
+```{r}
+# Examine Income2005 in the training set
+summary(income_train$Income2005)
+
+# Write the formula for log income as a function of the tests and print it
+(fmla.log <- log(Income2005) ~ Arith + Word + Parag + Math + AFQT)
+
+# Fit the linear model
+model.log <-  lm(fmla.log, income_train)
+
+# Make predictions on income_test
+income_test$logpred <- predict(model.log, income_test)
+summary(income_test$logpred)
+
+# Convert the predictions to monetary units
+income_test$pred.income <- exp(income_test$logpred)
+summary(income_test$pred.income)
+
+#  Plot predicted income (x axis) vs income
+ggplot(income_test, aes(x = pred.income, y = Income2005)) + 
+  geom_point() + 
+  geom_abline(color = "blue")
+```
+
+Comparing RMSE and root-mean-squared Relative Error
+
+In this exercise, you will show that log-transforming a monetary output before modeling improves mean relative error (but increases RMSE) compared to modeling the monetary output directly. You will compare the results of model.log from the previous exercise to a model (model.abs) that directly fits income.
+
+```{r}
+# fmla.abs is in the workspace
+fmla.abs
+
+# model.abs is in the workspace
+summary(model.abs)
+
+# Add predictions to the test set
+income_test <- income_test %>%
+  mutate(pred.absmodel = predict(model.abs, income_test),        # predictions from model.abs
+         pred.logmodel = exp(predict(model.log, income_test)))   # predictions from model.log
+
+# Gather the predictions and calculate residuals and relative error
+income_long <- income_test %>% 
+  gather(key = modeltype, value = pred, pred.absmodel, pred.logmodel) %>%
+  mutate(residual = pred-Income2005,   # residuals
+         relerr   = (pred-Income2005)/Income2005)   # relative error
+
+# Calculate RMSE and relative RMSE and compare
+income_long %>% 
+  group_by(modeltype) %>%      # group by modeltype
+  summarize(rmse     = sqrt(mean(residual^2)),    # RMSE
+            rmse.rel = sqrt(mean(relerr^2)))    # Root mean squared relative error
+```
+
+## Transforming Inputs before modeling
+
+Why:
+- Domain knowledge
+- Log transform to reduce dynamic range
+- meaningful changes in variable are multiplicative
+- y is approximately linear in f(x) rather than in x
+
+Which one?
+- Best r.squared
+- Best RMSE after cross-validation
+
+### Exercises
+
+Input transforms: the "hockey stick"
+
+In this exercise, we will build a model to predict price from a measure of the house's size (surface area). 
+
+```{r}
+# houseprice is in the workspace
+summary(houseprice)
+
+# Create the formula for price as a function of squared size
+(fmla_sqr <- price ~ I(size^2))
+
+# Fit a model of price as a function of squared size (use fmla_sqr)
+model_sqr <- lm(fmla_sqr, houseprice)
+
+# Fit a model of price as a linear function of size
+model_lin <- lm(price ~ size, houseprice)
+
+# Make predictions and compare
+houseprice %>% 
+    mutate(pred_lin = predict(model_lin),       # predictions from linear model
+           pred_sqr = predict(model_sqr)) %>%   # predictions from quadratic model 
+    gather(key = modeltype, value = pred, pred_lin, pred_sqr) %>% # gather the predictions
+    ggplot(aes(x = size)) + 
+       geom_point(aes(y = price)) +                   # actual prices
+       geom_line(aes(y = pred, color = modeltype)) + # the predictions
+       scale_color_brewer(palette = "Dark2")
+```
+
+In the last exercise you saw that a quadratic model seems to fit the houseprice data better than a linear model. In this exercise you will confirm whether the quadratic model would perform better on out-of-sample data. Since this data set is small, you will use cross-validation.
+
+```{r}
+# houseprice is in the workspace
+summary(houseprice)
+
+# fmla_sqr is in the workspace
+fmla_sqr
+
+# Create a splitting plan for 3-fold cross validation
+set.seed(34245)  # set the seed for reproducibility
+splitPlan <- kWayCrossValidation(nrow(houseprice), 3, NULL, NULL)
+
+# Sample code: get cross-val predictions for price ~ size
+houseprice$pred_lin <- 0  # initialize the prediction vector
+for(i in 1:3) {
+  split <- splitPlan[[i]]
+  model_lin <- lm(price ~ size, data = houseprice[split$train,])
+  houseprice$pred_lin[split$app] <- predict(model_lin, newdata = houseprice[split$app,])
+}
+
+# Get cross-val predictions for price as a function of size^2 (use fmla_sqr)
+houseprice$pred_sqr <- 0 # initialize the prediction vector
+for(i in 1:3) {
+  split <- splitPlan[[i]]
+  model_sqr <- lm(fmla_sqr, data = houseprice[split$train, ])
+  houseprice$pred_sqr[split$app] <- predict(model_sqr, newdata = houseprice[split$app, ])
+}
+
+# Gather the predictions and calculate the residuals
+houseprice_long <- houseprice %>%
+  gather(key = modeltype, value = pred, pred_lin, pred_sqr) %>%
+  mutate(residuals = pred-price)
+
+# Compare the cross-validated RMSE for the two models
+houseprice_long %>% 
+  group_by(modeltype) %>% # group by modeltype
+  summarize(rmse = sqrt(mean(residuals^2)))
+```
+
+# Non-Linear Responses
 
 # Tree-based Methods
