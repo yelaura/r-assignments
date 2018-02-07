@@ -4,6 +4,10 @@ output: html_notebook
 author: "Laura Ye"
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, eval=FALSE)
+```
+
 Notes for DataCamp Module: Supervised Learning in R: Regression
 
 # What is Regression?
@@ -825,4 +829,611 @@ houseprice_long %>%
 
 # Non-Linear Responses
 
+## Logistic Regression (Predict Probabilities)
+
+Classification (yes or no)
+Regression (Probability)
+
+Outcome: 2 possibilities
+Inputs: 2 continuous variabilities
+Need a model that only predicts probabilities 0 to 1 > Logistic Regression
+
+glm(formula, data, family = binomial)
+- Generalized linear model
+- Assumes inputs additive, linear in log odds: log(p/(1-p))
+- family: describes error distribution of the model. for logistic regression this is family=binomial
+- assumes 2 possible outcomes. Model returns prob(b). Recommends transforming outcome to TRUE/FALSE or 0/1
+
+predict(model, newdata, type="response")
+- type=response will return possibilities
+- otherwise, by default will return log-odds
+- predictions should lie between 0 and 1
+
+Use Deviance and pseudo R^2 to evaluate
+- pseudo R^2 = 1- deviance/null.deviance
+
+broom::glance() and sigr::wrapChiSqTest() - calculate pseudo R^2 on training and test data
+
+Gain Curve Plot is great for evaluating logistic regression
+
+### Exercises
+
+In this exercise, you will estimate the probability that a sparrow survives a severe winter storm, based on physical characteristics of the sparrow. The dataset sparrow is loaded into your workspace. The outcome to be predicted is status ("Survived", "Perished").
+
+```{r}
+# sparrow is in the workspace
+summary(sparrow)
+
+# Create the survived column
+sparrow$survived <- sparrow$status == "Survived"
+
+# Create the formula
+(fmla <- survived ~ total_length + weight + humerus)
+
+# Fit the logistic regression model
+sparrow_model <- glm(fmla, sparrow, family=binomial)
+
+# Call summary
+summary(sparrow_model)
+
+# Call glance
+(perf <- glance(sparrow_model))
+
+# Calculate pseudo-R-squared
+(pseudoR2 <- 1 - perf$deviance / perf$null.deviance)
+```
+
+In this exercise you will predict the probability of survival using the sparrow survival model from the previous exercise.
+
+```{r}
+# sparrow is in the workspace
+summary(sparrow)
+
+# sparrow_model is in the workspace
+summary(sparrow_model)
+
+# Make predictions
+sparrow$pred <- predict(sparrow_model, newdata=sparrow, type="response")
+
+# Look at gain curve
+GainCurvePlot(sparrow, "pred", "survived", "sparrow survival model")
+```
+
+From the curve, the model follows the wizard curve for first 30% of the data.
+
+## Poisson and quasipoisson regression (predict counts)
+
+Predicting counts is nonlinear (integral)
+
+glm(formula, data, family)
+- family=poisson or quasipoisson
+- inputs are additive and linear in log(count) or log(outcome)
+- outcome = count or rate
+- prediction = expected rate or intensity (may not be integer)
+
+Poisson vs Quasipoisson
+- assumes that mean(y) = var(y)
+- if var(y) too different from mean(y) use quasipoisson (measured by order of magnitude)
+- Both require large sample size
+- if rates/counts > 0 regular regression is OK
+
+### Exercises
+
+In this exercise you will build a model to predict the number of bikes rented in an hour as a function of the weather, the type of day (holiday, working day, or weekend), and the time of day. You will train the model on data from the month of July.
+
+```{r}
+# bikesJuly is in the workspace
+str(bikesJuly)
+
+# The outcome column
+outcome 
+
+# The inputs to use
+vars 
+
+# Create the formula string for bikes rented as a function of the inputs
+(fmla <- paste(outcome, "~", paste(vars, collapse = " + ")))
+
+# Calculate the mean and variance of the outcome
+(mean_bikes <- mean(bikesJuly$cnt))
+(var_bikes <- var(bikesJuly$cnt))
+# Mean and variance are not on the same order of magnitude so we will use quasipoisson
+
+# Fit the model
+bike_model <- glm(fmla, bikesJuly, family=quasipoisson)
+
+# Call glance
+(perf <- glance(bike_model))
+
+# Calculate pseudo-R-squared
+(pseudoR2 <- 1 - perf$deviance/ perf$null.deviance)
+```
+
+In this exercise you will use the model you built in the previous exercise to make predictions for the month of August. The data set bikesAugust has the same columns as bikesJuly.
+
+```{r}
+# bikesAugust is in the workspace
+str(bikesAugust)
+
+# bike_model is in the workspace
+summary(bike_model)
+
+# Make predictions on August data
+bikesAugust$pred  <- predict(bike_model, newdata=bikesAugust, type="response")
+
+# Calculate the RMSE
+bikesAugust %>% 
+  mutate(residual = pred-cnt) %>%
+  summarize(rmse  = sqrt(mean(residual^2)))
+
+# Plot predictions vs cnt (pred on x-axis)
+ggplot(bikesAugust, aes(x = pred, y = cnt)) +
+  geom_point() + 
+  geom_abline(color = "darkblue")
+```
+
+In the previous exercise, you visualized the bike model's predictions using the standard "outcome vs. prediction" scatter plot. Since the bike rental data is time series data, you might be interested in how the model performs as a function of time. In this exercise, you will compare the predictions and actual rentals on an hourly basis, for the first 14 days of August.
+
+```{r}
+# Plot predictions and cnt by date/time
+bikesAugust %>% 
+  # set start to 0, convert unit to days
+  mutate(instant = (instant - min(instant))/24) %>%  
+  # gather cnt and pred into a value column
+  gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # restric to first 14 days
+  # plot value by instant
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Quasipoisson model")
+```
+
+## Generalized Additive Models (GAM) to learn non-linear transformations
+
+output depends additively on input variables
+
+mgcv::gam(formula, family, data)
+-best for larger data sets
+
+family options
+- gaussian (default) = "regular" regression
+- binomial = probabilities
+- poisson/quasipoisson = counts
+
+s() function - stands for spline
+- specifies that input variable is nonlinear
+- use with continuous variables (more than 10 unique)
+- not recommended for categorical variables
+
+plot(model) returns variable transformations
+- predict(model, type="terms") gives y-values for this plot
+
+small data set -> noisier GAM
+
+### Exercises
+
+In this exercise you will model the average leaf weight on a soybean plant as a function of time (after planting). As you will see, the soybean plant doesn't grow at a steady rate, but rather has a "growth spurt" that eventually tapers off. Hence, leaf weight is not well described by a linear model.
+
+```{r}
+# soybean_train is in the workspace
+summary(soybean_train)
+
+# Plot weight vs Time (Time on x axis)
+ggplot(soybean_train, aes(x = Time, y = weight)) + 
+  geom_point()
+
+# Load the package mgcv
+library(mgcv)
+
+# Create the formula 
+(fmla.gam <- weight ~ s(Time) )
+
+# Fit the GAM Model
+model.gam <- gam(fmla.gam, family=gaussian, soybean_train)
+
+# Call summary() on model.lin and look for R-squared
+summary(model.lin)
+
+# Call summary() on model.gam and look for R-squared
+summary(model.gam)
+
+# Call plot() on model.gam
+plot(model.gam)
+```
+
+In this exercise you will apply the soybean models from the previous exercise (model.lin and model.gam, already in your workspace) to new data: soybean_test.
+
+```{r}
+# soybean_test is in the workspace
+summary(soybean_test)
+
+# Get predictions from linear model
+soybean_test$pred.lin <- predict(model.lin, newdata = soybean_test)
+
+# Get predictions from gam model
+soybean_test$pred.gam <- as.numeric(predict(model.gam, newdata = soybean_test))
+
+# Gather the predictions into a "long" dataset
+soybean_long <- soybean_test %>%
+  gather(key = modeltype, value = pred, pred.lin, pred.gam)
+
+# Calculate the rmse
+soybean_long %>%
+  mutate(residual = weight - pred) %>%     # residuals
+  group_by(modeltype) %>%                  # group by modeltype
+  summarize(rmse = sqrt(mean(residual^2))) # calculate the RMSE
+
+# Compare the predictions against actual weights on the test data
+soybean_long %>%
+  ggplot(aes(x = Time)) +                          # the column for the x axis
+  geom_point(aes(y = weight)) +                    # the y-column for the scatterplot
+  geom_point(aes(y = pred, color = modeltype)) +   # the y-column for the point-and-line plot
+  geom_line(aes(y = pred, color = modeltype, linetype = modeltype)) + # the y-column for the point-and-line plot
+  scale_color_brewer(palette = "Dark2")
+```
+
 # Tree-based Methods
+
+## Intuition behind Decision Tree
+
+Rules-based: if a AND b AND c THEN y
+
+Nonlinear concepts like intervals and non-monotonic relationships
+non-additive interactions: AND: similar to multiplication
+
+Pro: Expressive Concept Space (lower RMSE)
+Con: Coarse-Grained Predictions (good for classification, not regression)
+- hard to express linear relationships
+- too few splits: shallow - too coarse
+- too many splits: deep - too complex, danger of overfit
+
+Ensembles of Trees
+- Finer grained predictions than single trees
+- lowest RMSE (random forest)
+
+## Random Forests
+
+Multiple diversive decision trees
+- reduces overfit
+- increases model expressiveness
+- finer grain predictions
+
+Procedure
+1. Draw bootstrapped sample from training data
+2. For each sample, grow a tree
+- at each node, pick best variable to split on
+- continue until tree is grown
+3. To score, evaluate it with all the trees and average the results
+
+ranger(fmla, data, num.trees = 500, respect.unordered.factors = "order")
+- if outcome is continuous, then regression
+- num.trees default is 500 - recommend using at least 200
+- respect.unordered.factors - how to treat categorical variables
+-- order means that they convert the categorical to 1,2,3
+
+predict(model, data)$predictions to obtain the predictions from this model
+
+### Exercises
+
+In this exercise you will again build a model to predict the number of bikes rented in an hour as a function of the weather, the type of day (holiday, working day, or weekend), and the time of day. You will train the model on data from the month of July.
+
+```{r}
+# bikesJuly is in the workspace
+str(bikesJuly)
+
+# Random seed to reproduce results
+seed
+
+# The outcome column
+(outcome <- "cnt")
+
+# The input variables
+(vars <- c("hr", "holiday", "workingday", "weathersit", "temp", "atemp", "hum", "windspeed"))
+
+# Create the formula string for bikes rented as a function of the inputs
+(fmla <- paste(outcome, "~", paste(vars, collapse = " + ")))
+
+# Load the package ranger
+library(ranger)
+
+# Fit and print the random forest model
+(bike_model_rf <- ranger(fmla, # formula 
+                         bikesJuly, # data
+                         num.trees = 500, 
+                         respect.unordered.factors = "order", 
+                         seed = seed))
+```
+
+In this exercise you will use the model that you fit in the previous exercise to predict bike rentals for the month of August.
+
+```{r}
+# bikesAugust is in the workspace
+str(bikesAugust)
+
+# bike_model_rf is in the workspace
+bike_model_rf
+
+# Make predictions on the August data
+bikesAugust$pred <- predict(bike_model_rf, bikesAugust)$predictions
+
+# Calculate the RMSE of the predictions
+bikesAugust %>% 
+  mutate(residual = cnt - pred)  %>% # calculate the residual
+  summarize(rmse  = sqrt(mean(residual^2)))      # calculate rmse
+
+# Plot actual outcome vs predictions (predictions on x-axis)
+ggplot(bikesAugust, aes(x = pred, y = cnt)) + 
+  geom_point() + 
+  geom_abline()
+```
+
+In the previous exercise, you saw that the random forest bike model did better on the August data than the quasiposson model, in terms of RMSE.
+
+In this exercise you will visualize the random forest model's August predictions as a function of time. The corresponding plot from the quasipoisson model that you built in a previous exercise is in the workspace for you to compare.
+
+Recall that the quasipoisson model mostly identified the pattern of slow and busy hours in the day, but it somewhat underestimated peak demands. You would like to see how the random forest model compares.
+
+```{r}
+# Print quasipoisson_plot
+quasipoisson_plot
+
+# Plot predictions and cnt by date/time
+bikesAugust %>% 
+  mutate(instant = (instant - min(instant))/24) %>%  # set start to 0, convert unit to days
+  gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # first two weeks
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Random Forest plot")
+```
+
+## One-Hot-Encoding Categorical Variables
+
+Useful for XGBoost
+
+Most R functions convert for you - model.matrix()
+
+xgboost() does not - convert categorical to numeric representation
+
+One-hot-encoding AKA Conversion to indicators
+
+Use vtreat:
+- designTreatmentsZ() designs a treatment plan from the training data
+- prepare() creates clean data
+-- all numerical
+-- no missing values (from continuous and categorical)
+-- use prepare() with treatment plan to treat future/test data
+- compatible with xgboost
+
+Usage Example
+treatplan <- designTreatmentsZ(dframe, varslist, verbose=FALSE)
+newvars <- treatplan$scoreframe %>%
++ filter(code %n% c("clean", "lev")) %>%
++ use_series(varName)) # mapping of original name and code names
+- only interested in clean and lev(el) variables
+-- lev variables are new indicators
+-- clean removes bad data
+training.treated <- prepare(treatmentplan, dframe, varRestriction=newvars)
+- each categorical variable is separated out into its own column and 0s and 1s - kessler's construction
+- need to use similar prepare statement for test data
+
+### Exercises
+
+In this exercise you will use vtreat to one-hot-encode a categorical variable on a small example. vtreat creates a treatment plan to transform categorical variables into indicator variables (coded "lev"), and to clean bad values out of numerical variables (coded "clean").
+
+```{r}
+# dframe is in the workspace
+dframe
+
+# Create a vector of variable names
+(vars <- c("color", "size"))
+
+# Load the package vtreat
+library(vtreat)
+
+# Create the treatment plan
+treatplan <- designTreatmentsZ(dframe, vars)
+
+# Examine the scoreFrame
+(scoreFrame <- treatplan %>%
+    use_series(scoreFrame) %>%
+    select(varName, origName, code))
+
+# We only want the rows with codes "clean" or "lev"
+(newvars <- scoreFrame %>%
+    filter(code %in% c("clean", "lev")) %>%
+    use_series(varName))
+
+# Create the treated training data
+(dframe.treat <- prepare(treatplan, dframe, varRestriction = newvars))
+```
+
+When a level of a categorical variable is rare, sometimes it will fail to show up in training data. If that rare level then appears in future data, downstream models may not know what to do with it. When such novel levels appear, using model.matrix or caret::dummyVars to one-hot-encode will not work correctly.
+
+vtreat is a "safer" alternative to model.matrix for one-hot-encoding, because it can manage novel levels safely. vtreat also manages missing values in the data (both categorical and continuous).
+
+In this exercise you will see how vtreat handles categorical values that did not appear in the training set. 
+
+```{r}
+# treatplan is in the workspace
+summary(treatplan)
+
+# newvars is in the workspace
+newvars
+
+# Print dframe and testframe
+dframe
+testframe
+
+# Use prepare() to one-hot-encode testframe
+(testframe.treat <- prepare(treatplan, testframe, varRestriction = newvars))
+```
+
+vtreat treats unknown colors as all zeros i.e. none of the known colors.
+
+In this exercise you will create one-hot-encoded data frames of the July/August bike data, for use with xgboost later on.
+
+```{r}
+# The outcome column
+(outcome <- "cnt")
+
+# The input columns
+(vars <- c("hr", "holiday", "workingday", "weathersit", "temp", "atemp", "hum", "windspeed"))
+
+# Load the package vtreat
+library(vtreat)
+
+# Create the treatment plan from bikesJuly (the training data)
+treatplan <- designTreatmentsZ(bikesJuly, vars, verbose = FALSE)
+
+# Get the "clean" and "lev" variables from the scoreFrame
+(newvars <- treatplan %>%
+  use_series(scoreFrame) %>%        
+  filter(code %in% c("clean", "lev")) %>%
+  use_series(varName))         # get the varName column
+
+# Prepare the training data
+bikesJuly.treat <- prepare(treatplan, bikesJuly,  varRestriction = newvars)
+
+# Prepare the test data
+bikesAugust.treat <- prepare(treatplan, bikesAugust,  varRestriction = newvars)
+
+# Call str() on the treated data
+str(bikesJuly.treat)
+str(bikesAugust.treat)
+```
+
+## Gradient Boosting Machines
+
+Ensemble method
+1. Fit shallow tree to data
+2. Fit tree to the residuals.
+3. Regularization - learning rate (larger = faster learning)
+4. Repeat until residuals are small enough or iterations maxed
+
+Easy to overestimate model
+- best practice: estimate via cross validation then retroactively decide how many trees
+
+1. Run xgb.cv() with large number of rounds
+2. xgb.cv()$evaluation_log records estimated RMSE for each round
+- find the number of trees that minimizes estimated RMSE
+3. Run xgboost() setting number of rounds to that from step 2
+
+Use vtreat to treat the data first, especially with categorical variables!
+
+Use which.min to find index of minimum RMSE = number of trees
+
+xgboost(data, label, nrounds, objective, eta, depth)
+predict(model, as.matrix(treated_data))
+
+### Exercises
+
+Find the right number of trees for a gradient boosting machine
+
+In this exercise you will get ready to build a gradient boosting model to predict the number of bikes rented in an hour as a function of the weather and the type and time of day. You will train the model on data from the month of July.
+
+```{r}
+# The July data is in the workspace
+ls()
+
+# Load the package xgboost
+library(xgboost)
+
+# Run xgb.cv
+cv <- xgb.cv(data = as.matrix(bikesJuly.treat), 
+            label = bikesJuly$cnt,
+            nrounds = 100,
+            nfold = 5,
+            objective = "reg:linear",
+            eta = 0.3,
+            max_depth = 6,
+            early_stopping_rounds = 10,
+            verbose = 0    # silent
+)
+
+# Get the evaluation log 
+elog <- cv$evaluation_log
+
+# Determine and print how many trees minimize training and test error
+elog %>% 
+   summarize(ntrees.train = which.min(train_rmse_mean),   # find the index of min(train_rmse_mean)
+             ntrees.test  = which.min(test_rmse_mean))   # find the index of min(test_rmse_mean)
+```
+
+Usually need less trees in test than in train. Important to use cross-validation to find right number of trees and avoid overfitting.
+
+Fit an xgboost bike rental model and predict
+
+In this exercise you will fit a gradient boosting model using xgboost() to predict the number of bikes rented in an hour as a function of the weather and the type and time of day. You will train the model on data from the month of July and predict on data for the month of August.
+
+```{r}
+# Examine the workspace
+ls()
+
+# The number of trees to use, as determined by xgb.cv
+ntrees
+
+# Run xgboost
+bike_model_xgb <- xgboost(data = as.matrix(bikesJuly.treat), # training data as matrix
+                   label = bikesJuly$cnt,  # column of outcomes
+                   nrounds = ntrees,       # number of trees to build
+                   objective = "reg:linear", # objective
+                   eta = 0.3,
+                   depth = 6,
+                   verbose = 0  # silent
+)
+
+# Make predictions
+bikesAugust$pred <- predict(bike_model_xgb, as.matrix(bikesAugust.treat))
+
+# Plot predictions (on x axis) vs actual bike rental count
+ggplot(bikesAugust, aes(x = pred, y = cnt)) + 
+  geom_point() + 
+  geom_abline()
+```
+
+Only issue is that this model predicted some negative values (even though we know the count will never be negative)
+
+Evaluate the xgboost bike rental model
+
+In this exercise you will evaluate the gradient boosting model bike_model_xgb that you fit in the last exercise, using data from the month of August. You'll compare this model's RMSE for August to the RMSE of previous models that you've built.
+
+```{r}
+# bikesAugust is in the workspace
+str(bikesAugust)
+
+# Calculate RMSE
+bikesAugust %>%
+  mutate(residuals = cnt - pred) %>%
+  summarize(rmse = sqrt(mean(residuals^2)))
+```
+
+Visualize the xgboost bike rental model
+
+You've now seen three different ways to model the bike rental data. For this example, you've seen that the gradient boosting model had the smallest RMSE. To finish up the course, let's compare the gradient boosting model's predictions to the other two models as a function of time.
+
+```{r}
+# Print quasipoisson_plot
+quasipoisson_plot
+
+# Print randomforest_plot
+randomforest_plot
+
+# Plot predictions and actual bike rentals as a function of time (days)
+bikesAugust %>% 
+  mutate(instant = (instant - min(instant))/24) %>%  # set start to 0, convert unit to days
+  gather(key = valuetype, value = value, cnt, pred) %>%
+  filter(instant < 14) %>% # first two weeks
+  ggplot(aes(x = instant, y = value, color = valuetype, linetype = valuetype)) + 
+  geom_point() + 
+  geom_line() + 
+  scale_x_continuous("Day", breaks = 0:14, labels = 0:14) + 
+  scale_color_brewer(palette = "Dark2") + 
+  ggtitle("Predicted August bike rentals, Gradient Boosting model")
+```
