@@ -369,3 +369,607 @@ model <- train(Class ~ ., Sonar, method="glm", trControl=myControl)
 print(model)
 ```
 
+# Random forests and wine
+
+Pros
+- Popular type and good for beginners
+- Robust to overfitting
+- Yield very accurate, non-linear models
+
+Drawbacks
+- hyperparameters need to be tuned and cannot be inferenced from the data
+- Impacts model fit
+- Varies by dataset
+
+Improves decision tree accuracy by fitting many decision trees. Each one is fitted to a bootstrap sample of the data - AKA bootstrap aggregation or bagging
+- Randomly samples columns at each split
+
+Procedure
+1. libraries needed: caret and mlbench
+2. set seed
+3. train model to method="ranger" (faster)
+4. plot model
+
+## Exercises
+
+Fit a random forest
+
+As you saw in the video, random forest models are much more flexible than linear models, and can model complicated nonlinear effects as well as automatically capture interactions between variables. They tend to give very good results on real world data, so let's try one out on the wine quality dataset, where the goal is to predict the human-evaluated quality of a batch of wine, given some of the machine-measured chemical and physical properties of that batch.
+
+```{r}
+# Fit random forest: model
+model <- train(
+  quality ~ .,
+  tuneLength = 1,
+  data = wine, method = "ranger",
+  trControl = trainControl(method = "cv", number = 5, verboseIter = TRUE)
+)
+
+# Print model to console
+print(model)
+```
+
+# Explore a wider model space
+
+Linear regression vs Random Forest
+- RF requires tuning hyperparameters
+- Hyperparameters must be selected manually before running the model
+- mtry - number of randomly selected variables used at each split
+  - lower value = more random
+- hard to know the best value in advance
+- use caret!
+
+caret
+- cross-validation
+- grid search
+
+use tunelength=10 when training model using ranger RF method
+plot the model - figure out mtry for the best accuracy
+
+## Exercises
+
+Try a longer tune length
+
+Recall from the video that random forest models have a primary tuning parameter of mtry, which controls how many variables are exposed to the splitting search routine at each split. For example, suppose that a tree has a total of 10 splits and mtry = 2. This means that there are 10 samples of 2 predictors each time a split is evaluated.
+
+```{r}
+# Fit random forest: model
+model <- train(
+  quality ~ .,
+  tuneLength = 3,
+  data = wine, method = "ranger",
+  trControl = trainControl(method = "cv", number = 5, verboseIter = TRUE)
+)
+
+# Print model to console
+print(model)
+
+# Plot model
+plot(model)
+```
+
+# Custom Tuning Grids
+
+pass custom tuning grids to tunegrid argument
+most flexible for fitting models
+complete control over how the model fits
+
+requires knowledge about the model
+dramatically increased run time potentially
+
+Procedure
+1. Make a data frame of the tuning parameters that we want to try
+2. Set seed.
+3. train model using tuneGrid = myGrid
+4. plot model to see which parameter yields the best accuracy
+
+## Exercises
+
+Fit a random forest with custom tuning
+
+Now that you've explored the default tuning grids provided by the train() function, let's customize your models a bit more.
+
+You can provide any number of values for mtry, from 2 up to the number of columns in the dataset. In practice, there are diminishing returns for much larger values of mtry, so you will use a custom tuning grid that explores 2 simple models (mtry = 2 and mtry = 3) as well as one more complicated model (mtry = 7).
+
+```{r}
+# Fit random forest: model
+model <- train(
+  quality ~ .,
+  tuneGrid = data.frame(mtry=c(2,3,7)),
+  data = wine, method = "ranger",
+  trControl = trainControl(method = "cv", number = 5, verboseIter = TRUE)
+)
+
+# Print model to console
+print(model)
+
+# Plot model
+plot(model)
+```
+
+# Introducing glmnet
+
+Extension of glm models with built-in variable selection
+helps deal with collinearity and small sample sizes
+Tries to find a balance between the two forms below
+pairs well with RF
+can fit a mix of the two
+
+2 primary forms:
+1. lasso regression - penalizes number of non-zero coefficients
+2. ridge regression - penalizes absolute magnitude of coefficients
+
+parameters:
+alpha [0,1]: pure lasso to pure ridge
+lambda (0, infinity): size of the penalty
+
+General Procedure
+1. Custom train control object using classProbs = TRUE
+2. train model using method "glmnet" and custom control
+3. plot model
+4. Find which parameter does the best with accuracy
+
+## Exercises
+
+Make a custom trainControl
+
+The wine quality dataset was a regression problem, but now you are looking at a classification problem. This is a simulated dataset based on the "don't overfit" competition on Kaggle a number of years ago.
+
+Classification problems are a little more complicated than regression problems because you have to provide a custom summaryFunction to the train() function to use the AUC metric to rank your models. Start by making a custom trainControl, as you did in the previous chapter. Be sure to set classProbs = TRUE, otherwise the twoClassSummary for summaryFunction will break.
+
+```{r}
+# Create custom trainControl: myControl
+myControl <- trainControl(
+  method = "cv", number = 10,
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE, # IMPORTANT!
+  verboseIter = TRUE
+)
+```
+
+Fit glmnet with custom trainControl
+
+Now that you have a custom trainControl object, fit a glmnet model to the "don't overfit" dataset. Recall from the video that glmnet is an extention of the generalized linear regression model (or glm) that places constraints on the magnitude of the coefficients to prevent overfitting. This is more commonly known as "penalized" regression modeling and is a very useful technique on datasets with many predictors and few values.
+
+```{r}
+# Fit glmnet model: model
+model <- train(
+  y ~ ., overfit,
+  method = "glmnet",
+  trControl = myControl
+)
+
+# Print model to console
+print(model)
+
+# Print maximum ROC statistic
+print(max(model[["results"]]))
+```
+
+# glmnet with custom tuning grid
+
+2 tuning parameters (alpha and lambda)
+for single alpha, all values of lambda fit simultaneously
+- many models for the price of one
+- faster running gridsearches
+
+usually explore 2 values of alpha
+and then use more values of lambda
+compare results visually
+
+plot(model$finalModel) 
+- plot specific to glmnet
+- full regularization path for all alpha = 0
+- right = low values of lambda AKA low penalities
+
+## Exercises
+
+glmnet with custom trainControl and tuning
+
+As you saw in the video, the glmnet model actually fits many models at once (one of the great things about the package). You can exploit this by passing a large number of lambda values, which control the amount of penalization in the model. train() is smart enough to only fit one model per alpha value and pass all of the lambda values at once for simultaneous fitting.
+
+```{r}
+# Train glmnet with custom trainControl and tuning: model
+model <- train(
+  y ~ ., overfit,
+  tuneGrid = expand.grid(alpha = 0:1,
+    lambda = seq(0.0001, 1, length = 20)),
+  method = "glmnet",
+  trControl = myControl
+)
+
+# Print model to console
+print(model)
+
+# Print maximum ROC statistic
+print(max(model[["results"]][["ROC"]]))
+```
+
+# Median imputation
+
+Dealing with missing values
+- most models require numbers
+- remove rows with missing data but lead to biases and generate over-confident models
+
+Median imputation
+- replace missing values with median
+- works well if data missing at random
+preProcess = "medianImpute"
+- caret does this inside each fold of CV
+
+## Exercises
+
+Apply median imputation
+
+In this chapter, you'll be using a version of the Wisconsin Breast Cancer dataset. This dataset presents a classic binary classification problem: 50% of the samples are benign, 50% are malignant, and the challenge is to identify which are which.
+
+This dataset is interesting because many of the predictors contain missing values and most rows of the dataset have at least one missing value. This presents a modeling challenge, because most machine learning algorithms cannot handle missing values out of the box. For example, your first instinct might be to fit a logistic regression model to this data, but prior to doing this you need a strategy for handling the NAs.
+
+Fortunately, the train() function in caret contains an argument called preProcess, which allows you to specify that median imputation should be used to fill in the missing values. In previous chapters, you created models with the train() function using formulas such as y ~ .. An alternative way is to specify the x and y arguments to train(), where x is an object with samples in rows and features in columns and y is a numeric or factor vector containing the outcomes. Said differently, x is a matrix or data frame that contains the whole dataset you'd use for the data argument to the lm() call, for example, but excludes the response variable column; y is a vector that contains just the response variable column.
+
+For this exercise, the argument x to train() is loaded in your workspace as breast_cancer_x and y as breast_cancer_y.
+
+```{r}
+# Apply median imputation: model
+model <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = "glm",
+  trControl = myControl,
+  preProcess = "medianImpute"
+)
+
+# Print model to console
+print(model)
+```
+
+# KNN Imputation
+
+median Imputation is fast but can produce incorrect results if data not missing at random
+
+KNN Imputation
+- imputes missing values based on similar non-missing rows
+- use train: preProcess = "knnImpute"
+- more accurate but slower
+
+## Exercises
+
+Use KNN imputation
+
+In the previous exercise, you used median imputation to fill in missing values in the breast cancer dataset, but that is not the only possible method for dealing with missing data.
+
+An alternative to median imputation is k-nearest neighbors, or KNN, imputation. This is a more advanced form of imputation where missing values are replaced with values from other rows that are similar to the current row. While this is a lot more complicated to implement in practice than simple median imputation, it is very easy to explore in caret using the preProcess argument to train(). You can simply use preProcess = "knnImpute" to change the method of imputation used prior to model fitting.
+
+```{r}
+# Apply KNN imputation: model2
+model2 <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = "glm",
+  trControl = myControl,
+  preProcess = "knnImpute"
+)
+
+# Print model to console
+print(model2)
+```
+
+# Multiple preprocessing methods
+
+preProcess
+- can do a lot more than imputation
+- can change together multiple preprocessing steps
+- common recipe (order matters!)
+- e.g. median imputation > center > scaling > pca > fit
+- preProcess = c("medianImpute", "center", "scale", "pca")
+- to evaluate results: min(model$results$RMSE)
+- spatialSign - projects info onto sphere (good for outliers and dimensionality)
+
+Cheatsheet
+- always start with median imputation; also try knn if data not missing at random
+- for linear models: center and scale
+- for linear models: try pca and spatialsign
+- tree based dont need preprocessing; usually median imputation is enough
+
+## Exercises
+
+Combining preprocessing methods
+
+The preProcess argument to train() doesn't just limit you to imputing missing values. It also includes a wide variety of other preProcess techniques to make your life as a data scientist much easier. You can read a full list of them by typing ?preProcess and reading the help page for this function.
+
+One set of preprocessing functions that is particularly useful for fitting regression models is standardization: centering and scaling. You first center by subtracting the mean of each column from each value in that column, then you scale by dividing by the standard deviation.
+
+Standardization transforms your data such that for each column, the mean is 0 and the standard deviation is 1. This makes it easier for regression models to find a good solution.
+
+```{r}
+# Fit glm with median imputation: model1
+model1 <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = "glm",
+  trControl = myControl,
+  preProcess = "medianImpute"
+)
+
+# Print model1
+print(model1)
+
+# Fit glm with median imputation and standardization: model2
+model2 <- train(
+  x = breast_cancer_x, y = breast_cancer_y,
+  method = "glm",
+  trControl = myControl,
+  preProcess = c("medianImpute", "center", "scale")
+)
+
+# Print model2
+print(model2)
+```
+
+# Handling low-information predictors
+
+No or low-variance variables
+- dont contain much information
+- constant or nearly constant
+- easy for one fold of CV to contain constant column
+- can cause problems for models
+- usually remove extremely low variance variables - runs faster and fewer bugs
+
+Use caret
+- zv removes constant columns
+- nzv removes nearly constant columns
+- use in preProcess before everything else
+
+## Exercises
+
+Remove near zero variance predictors
+
+As you saw in the video, for the next set of exercises, you'll be using the blood-brain dataset. This is a biochemical dataset in which the task is to predict the following value for a set of biochemical compounds:
+
+log((concentration of compound in brain) /
+      (concentration of compound in blood))
+      
+This gives a quantitative metric of the compound's ability to cross the blood-brain barrier, and is useful for understanding the biological properties of that barrier.
+
+One interesting aspect of this dataset is that it contains many variables and many of these variables have extemely low variances. This means that there is very little information in these variables because they mostly consist of a single value (e.g. zero).
+
+Fortunately, caret contains a utility function called nearZeroVar() for removing such variables to save time during modeling.
+
+nearZeroVar() takes in data x, then looks at the ratio of the most common value to the second most common value, freqCut, and the percentage of distinct values out of the number of total samples, uniqueCut. By default, caret uses freqCut = 19 and uniqueCut = 10, which is fairly conservative. I like to be a little more aggressive and use freqCut = 2 and uniqueCut = 20 when calling nearZeroVar().
+
+```{r}
+# Identify near zero variance predictors: remove_cols
+remove_cols <- nearZeroVar(bloodbrain_x, names = TRUE, 
+                           freqCut = 2, uniqueCut = 20)
+
+# Get all column names from bloodbrain_x: all_cols
+all_cols <- names(bloodbrain_x)
+
+# Remove from data: bloodbrain_x_small
+bloodbrain_x_small <- bloodbrain_x[ , setdiff(all_cols, remove_cols)]
+```
+
+Fit model on reduced blood-brain data
+
+Now that you've reduced your dataset, you can fit a glm model to it using the train() function. This model will run faster than using the full dataset and will yield very similar predictive accuracy.
+
+Furthermore, zero variance variables can cause problems with cross-validation (e.g. if one fold ends up with only a single unique value for that variable), so removing them prior to modeling means you are less likely to get errors during the fitting process.
+
+```{r}
+# Fit model on reduced data: model
+model <- train(x = bloodbrain_x_small, y = bloodbrain_y, method = "glm")
+
+# Print model to console
+print(model)
+```
+
+# Principle components analysis (PCA)
+
+Combines low-variance and correlated variables
+Single set of high-variance, perpendicular predictors
+Systematic way to use the high-variance predictors
+Prevents collinearity
+Visual representation
+
+First component has the highest variance... etc
+PCA transforms the data to reflect the correlation between x and y
+Second component is constrained to be perpendicular to the first
+
+## Exercises
+
+Using PCA as an alternative to nearZeroVar()
+
+An alternative to removing low-variance predictors is to run PCA on your dataset. This is sometimes preferable because it does not throw out all of your data: many different low variance predictors may end up combined into one high variance PCA variable, which might have a positive impact on your model's accuracy.
+
+This is an especially good trick for linear models: the pca option in the preProcess argument will center and scale your data, combine low variance variables, and ensure that all of your predictors are orthogonal. This creates an ideal dataset for linear regression modeling, and can often improve the accuracy of your models.
+
+```{r}
+# Fit glm model using PCA: model
+model <- train(
+  x = bloodbrain_x, y = bloodbrain_y,
+  method = "glm", preProcess = c("pca")
+)
+
+# Print model to console
+print(model)
+```
+
+# Reusing a trainControl
+
+Use a custom trainControl object to explicitly define the same split for each fold to ensure apples-to-apples comparison
+
+## Exercises
+
+Make custom train/test indices
+
+As you saw in the video, for this chapter you will focus on a real-world dataset that brings together all of the concepts discussed in the previous chapters.
+
+The churn dataset contains data on a variety of telecom customers and the modeling challenge is to predict which customers will cancel their service (or churn).
+
+In this chapter, you will be exploring two different types of predictive models: glmnet and rf, so the first order of business is to create a reusable trainControl object you can use to reliably compare them.
+
+```{r}
+# Create custom indices: myFolds
+myFolds <- createFolds(churn_y, k = 5)
+
+# Create reusable trainControl object: myControl
+myControl <- trainControl(
+  summaryFunction = twoClassSummary,
+  classProbs = TRUE, # IMPORTANT!
+  verboseIter = TRUE,
+  savePredictions = TRUE,
+  index = myFolds
+)
+```
+
+# Reintroduce glmnet
+
+Linear model with built-in variable selection
+Great baseline model
+Usually first model to try on first data set
+
+Pros
+- fits quickly
+- ignores noise
+- provides interpretable coefficients
+
+## Exercises
+
+Fit the baseline model
+
+Now that you have a reusable trainControl object called myControl, you can start fitting different predictive models to your churn dataset and evaluate their predictive accuracy.
+
+You'll start with one of my favorite models, glmnet, which penalizes linear and logistic regression models on the size and number of coefficients to help prevent overfitting.
+
+```{r}
+# Fit glmnet model: model_glmnet
+model_glmnet <- train(
+  x = churn_x, y = churn_y,
+  metric = "ROC",
+  method = "glmnet",
+  trControl = myControl
+)
+```
+
+# Reintroduce Random Forest
+
+Second model to try in new datasets
+Slower and black box interpretability
+But more accurate and easier to tune
+Little preprocessing is required
+Captures threshold effects and variable interactions
+
+## Exercises
+
+Random forest with custom trainControl
+
+Another one of my favorite models is the random forest, which combines an ensemble of non-linear decision trees into a highly flexible (and usually quite accurate) model.
+
+Rather than using the classic randomForest package, you'll be using the ranger package, which is a re-implementation of randomForest that produces almost the exact same results, but is faster, more stable, and uses less memory. I highly recommend it as a starting point for random forest modeling in R.
+
+```{r}
+# Fit random forest: model_rf
+model_rf <- train(
+  x = churn_x, y = churn_y,
+  metric = "ROC",
+  method = "ranger",
+  trControl = myControl
+)
+```
+
+# Comparing models
+
+After fitting 2+ models, which one fits best?
+- Make sure they were fit on the same data
+- Highest average AUC in CV
+- Lowest standard deviations in AUC
+- resamples() function - provides variety of methods to evaluate
+
+Procedure
+1. Make a list of model names
+2. Collect resamples from model names list
+3. Summarize the results - summary(resamps)
+
+## Exercises
+
+Create a resamples object
+
+Now that you have fit two models to the churn dataset, it's time to compare their out-of-sample predictions and choose which one is the best model for your dataset.
+
+You can compare models in caret using the resamples() function, provided they have the same training data and use the same trainControl object with preset cross-validation folds. resamples() takes as input a list of models and can be used to compare dozens of models at once (though in this case you are only comparing two models).
+
+```{r}
+# Create model_list
+model_list <- list(item1 = model_glmnet, item2 = model_rf)
+
+# Pass model_list to resamples(): resamples
+resamples <- resamples(model_list)
+
+# Summarize the results
+summary(resamples)
+```
+
+# More on resamples
+
+Tons of cool methods
+Inspired the caretEnsemble package - ensembles lists of caret models
+
+Box-and-whisker plot - use to find the model with the highest AUC
+dotplot - use to find the same info as above
+density plot - full distribution of AUC scores
+scatterplot - compare metrics on all ten folds
+dotplot - many models
+
+## Exercises
+
+Create a box-and-whisker plot
+
+caret provides a variety of methods to use for comparing models. All of these methods are based on the resamples() function. My favorite is the box-and-whisker plot, which allows you to compare the distribution of predictive accuracy (in this case AUC) for the two models.
+
+In general, you want the model with the higher median AUC, as well as a smaller range between min and max AUC.
+
+You can make this plot using the bwplot() function, which makes a box and whisker plot of the model's out of sample scores. Box and whisker plots show the median of each distribution as a line and the interquartile range of each distribution as a box around the median line. You can pass the metric = "ROC" argument to the bwplot() function to show a plot of the model's out-of-sample ROC scores and choose the model with the highest median ROC.
+
+If you do not specify a metric to plot, bwplot() will automatically plot 3 of them.
+
+```{r}
+# Create bwplot
+bwplot(resamples, metric="ROC")
+```
+
+Create a scatterplot
+
+Another useful plot for comparing models is the scatterplot, also known as the xy-plot. This plot shows you how similar the two models' performances are on different folds.
+
+It's particularly useful for identifying if one model is consistently better than the other across all folds, or if there are situations when the inferior model produces better predictions on a particular subset of the data.
+
+```{r}
+# Create xyplot
+xyplot(resamples, metric="ROC")
+```
+
+Ensembling models
+
+That concludes the course! As a teaser for a future course on making ensembles of caret models, I'll show you how to fit a stacked ensemble of models using the caretEnsemble package.
+
+caretEnsemble provides the caretList() function for creating multiple caret models at once on the same dataset, using the same resampling folds. You can also create your own lists of caret models.
+
+In this exercise, I've made a caretList for you, containing the glmnet and ranger models you fit on the churn dataset. Use the caretStack() function to make a stack of caret models, with the two sub-models (glmnet and ranger) feeding into another (hopefully more accurate!) caret model.
+
+```{r}
+# Create ensemble model: stack
+stack <- caretStack(model_list, method= "glm")
+
+# Look at summary
+summary(stack)
+```
+
+# Summary and Conclusion
+
+What you've learned
+- How to use caret package
+- Model fitting and evaluation
+- Parameter tuning
+- Data preprocessing
+
+Goals of the caret package
+- simplify the predictive modeling process
+- make it easy to try many models and techniques
+- common interface to many useful packages
