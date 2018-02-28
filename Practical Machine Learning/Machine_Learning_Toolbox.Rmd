@@ -1,5 +1,5 @@
 ---
-title: "R Notebook"
+title: "Machine Learning Toolbox - Data Camp"
 output: html_notebook
 author: "Laura Ye"
 ---

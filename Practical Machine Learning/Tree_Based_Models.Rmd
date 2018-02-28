@@ -1,0 +1,84 @@
+---
+title: "Tree-Based Models - Data Camp"
+output: html_notebook
+author: "Laura Ye"
+---
+
+# Welcome
+
+Supervised learning - subfield of machine learning
+Unsupervised learning - learn from input data alone
+
+Input - Output/Label/Number
+
+Supervised learning can map new features to label/number
+
+Decision-tree based models
+1. Random forest
+2. Gradient boosting machines
+
+Differences
+- Unique combo of modeling interpretability
+- Ease of use
+- Excellent accuracy
+- Make decisions + numeric predictions
+
+Types of Trees
+- Classification & Regression Trees
+- Bagged Trees
+- Random Forests
+- Boosted Trees (GBM)
+
+Decision tree Terminology
+
+Nodes
+Root node at the top
+Leaf nodes end
+Internal nodes are neither leaf or root
+
+Training Decision Trees in R
+- Use rpart package, stands for "recursive partitioning"
+
+rpart(response ~ ., data = dataset)
+
+## Exercises
+
+Build a classification tree
+
+Let's get started and build our first classification tree. A classification tree is a decision tree that performs a classification (vs regression) task.
+
+You will train a decision tree model to understand which loan applications are at higher risk of default using a subset of the German Credit Dataset. The response variable, called "default", indicates whether the loan went into a default or not, which means this is a binary classification problem (there are just two classes).
+
+```{r}
+# Look at the data
+str(creditsub)
+
+# Create the model
+credit_model <- rpart(formula = default ~ ., 
+                      data = creditsub, 
+                      method = "class")
+
+# Display the results
+rpart.plot(x = credit_model, yesno = 2, type = 0, extra = 0)
+```
+
+# Intro to Classification Trees
+
+Advantages
+- Simple to understand, interpret, visualize - just need to understand a flow chart
+- Can handle both numerical and categorical inputs natively (don't need to make dummy variables)
+  - root splitting is used in some models to handle cateogrical inputs
+- can handle missing data elegantly
+  - popular method: choose left or right at split at random, or go both ways and average the leaves for final result
+- robust to outliers
+- requires little data prep
+- can model non-linearity
+- can be trained quickly on big data sets
+
+Disadvantage
+- Large trees are hard to interpret
+- Trees have high variance, so poor model performance
+- easily overfitted
+
+## Exercises
+
