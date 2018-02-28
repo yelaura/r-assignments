@@ -80,5 +80,157 @@ Disadvantage
 - Trees have high variance, so poor model performance
 - easily overfitted
 
+# Overview of modeling process
+
+Train/Test Split - usually 80/20
+Use cross-validation
+
+Get number of rows in data set (nrow)
+Define how many rows for training set
+Set seed
+Create a vector of indices which is 80% of random sample (sample)
+Subset the data
+
+Train a Classification  Tree
+rpart(formula, data, method)
+method = "class" for classification tree (binary response)
+
 ## Exercises
 
+Train/test split
+
+For this exercise, you'll randomly split the German Credit Dataset into two pieces: a training set (80%) called credit_train and a test set (20%) that we will call credit_test. We'll use these two sets throughout the chapter.
+
+```{r}
+# Total number of rows in the credit data frame
+n <- nrow(credit)
+
+# Number of rows for the training set (80% of the dataset)
+n_train <- round(0.8 * n) 
+
+# Create a vector of indices which is an 80% random sample
+set.seed(123)
+train_indices <- sample(1:n, n_train)
+
+# Subset the credit data frame to training indices only
+credit_train <- credit[train_indices, ]  
+  
+# Exclude the training indices to create the test set
+credit_test <- credit[-train_indices, ]  
+```
+
+Train a classification tree model
+
+In this exercise, you will train a model on the newly created training set and print the model object.
+
+```{r}
+# Train the model (to predict 'default')
+credit_model <- rpart(formula = default ~ ., 
+                      data = credit_train, 
+                      method = "class")
+
+# Look at the model output                      
+print(credit_model)
+```
+
+# Evaluating classification model performance
+
+Make a prediction and evaluate predictions
+
+Predict function
+predict(model, test_dataset)
+rpart predict has type argument - if type="class", returns classification labels, if type="prob", raw predicted values will be returned
+
+Evaluation metrics for binary classification
+Accuracy
+Confusion matrix
+Log-loss
+AUC
+
+Accuracy
+Measures how often the classified predicts the class correctly
+Makes no distinction between classes
+Might want to look at specific classes
+
+Confusion Matrix
+Detailed breakdown of correct/incorrect predictions
+In binary classification, 2x2
+Good model will have larger numbers in the main diagonal
+Can be expanded for more classes
+
+Use confusionMatrix(data, reference) in caret package to create a confusion matrix
+
+## Exercise
+
+Compute confusion matrix
+
+As discussed in the previous video, there are a number of different metrics by which you can measure the performance of a classification model. In this exercise, we will evaluate the performance of the model using test set classification error. A confusion matrix is a convenient way to examine the per-class error rates for all classes at once.
+
+```{r}
+# Generate predicted classes using the model object
+class_prediction <- predict(object = credit_model,  
+                        newdata = credit_test,   
+                        type = "class")  
+                            
+# Calculate the confusion matrix for the test set
+confusionMatrix(data = class_prediction,       
+                reference = credit_test$default)  
+```
+
+# Splitting criterion in trees
+
+Classification trees using split criterion to split labels
+At each node, the tree decides whether to go left or right
+Split into subsets where each subset only belongs to one class
+Real data: completely pure data may not be possible
+Decision boundaries separate the regions where each subset is 100% pure
+
+How to determine best split?
+Most homogenous subset is the best split & preferred partition
+Need a way to measure purity of splits
+Works better mathematically to measure impurity vs measuring purity
+
+Impurity Measure - Gini Index
+Higher = less pure
+Lower = more pure
+Decision tree will select the split with the lower gini index
+
+## Exercise
+
+Compare models with a different splitting criterion
+
+Train two models that use a different splitting criterion and use the validation set to choose a "best" model from this group. To do this you'll use the parms argument of the rpart() function. This argument takes a named list that contains values of different parameters you can use to change how the model is trained. Set the parameter split to control the splitting criterion.
+
+```{r}
+# Train a gini-based model
+credit_model1 <- rpart(formula = default ~ ., 
+                       data = credit_train, 
+                       method = "class",
+                       parms = list(split = "gini"))
+
+# Train an information-based model
+credit_model2 <- rpart(formula = default ~ ., 
+                       data = credit_train, 
+                       method = "class",
+                       parms = list(split = "information"))
+
+# Generate predictions on the validation set using the gini model
+pred1 <- predict(object = credit_model1, 
+             newdata = credit_test,
+             type = "class")    
+
+# Generate predictions on the validation set using the information model
+pred2 <- predict(object = credit_model2, 
+             newdata = credit_test,
+             type = "class")
+
+# Compare classification error
+ce(actual = credit_test$default, 
+   predicted = pred1)
+ce(actual = credit_test$default, 
+   predicted = pred2)  
+```
+
+CE stands for classification error, which is the fraction of incorrectly classified instances. Lower CE indicates that the credit model using the information index had fewer errors in classification.
+
+# 
