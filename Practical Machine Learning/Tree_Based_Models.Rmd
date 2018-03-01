@@ -233,4 +233,542 @@ ce(actual = credit_test$default,
 
 CE stands for classification error, which is the fraction of incorrectly classified instances. Lower CE indicates that the credit model using the information index had fewer errors in classification.
 
-# 
+# Intro to regression trees
+
+Regression model - predict a numeric outcome from a set of inputs
+Inputs can be numeric or categorical
+For example, predicting weight.
+
+How to determine accuracy of regression model? +/- threshold?
+
+Root node - data is partitioned by the feature that will increase the homogeneity.
+Homogeneity is measured by variance, stdev or abs dev from mean.
+
+rpart(formula, data, method = "anova", control)
+method = "anova" for regression tree
+method = "class" for classification tree
+
+Split the data differently into train, validation, test sets
+Validation - new concept, like test set, used to measure performance on unseen data. Used to tune the paramters
+Test set - use only once at the end of the modeling process
+
+## Exercise
+
+Split the data
+
+These examples will use a subset of the Student Performance Dataset from UCI ML Dataset Repository.
+
+The goal of this exercise is to predict a student's final Mathematics grade based on the following variables: sex, age, address, studytime (weekly study time), schoolsup (extra educational support), famsup (family educational support), paid (extra paid classes within the course subject) and absences.
+
+After the initial exploration, let's split the data into training, validation, test sets. In this chapter, we will introduce the idea of a validation set, which can be used to select a "best" model from a set of competing models.
+
+```{r}
+# Look/explore the data
+str(grade)
+
+# Randomly assign rows to ids (1/2/3 represents train/valid/test)
+# This will generate a vector of ids of length equal to the number of rows
+# The train/valid/test split will be approximately 70% / 15% / 15% 
+set.seed(1)
+assignment <- sample(1:3, size = nrow(grade), prob = c(0.7,0.15,0.15), replace = TRUE)
+
+# Create a train, validation and tests from the original data frame 
+grade_train <- grade[assignment == 1, ]    # subset the grade data frame to training indices only
+grade_valid <- grade[assignment == 2, ]  # subset the grade data frame to validation indices only
+grade_test <- grade[assignment == 3, ]   # subset the grade data frame to test indices only
+```
+
+Train a regression tree model
+
+In this exercise, we will use the grade_train dataset to fit a regression tree using rpart() and visualize it using rpart.plot(). A regression tree plot will look identical to a classification tree plot, with the exception that there will be numeric values in the leaf nodes instead of predicted classes.
+
+```{r}
+# Train the model
+grade_model <- rpart(formula = final_grade ~ ., 
+                     data = grade_train, 
+                     method = "anova")
+
+# Look at the model output                      
+print(grade_model)
+
+# Plot the tree model
+rpart.plot(x = grade_model, yesno = 2, type = 0, extra = 0)
+```
+
+# Performance metrics for regression
+
+Evaluate the performance of the model
+With classification - accuracy is okay
+Evaluate using a different metric
+Resposne is real-valued - measure how far away the predictions are from actual values
+MAE - mean absolute error
+RMSE - root mean square error
+Lower is better
+
+RMSE punishes large errors harsher than MAE
+RMSE is more useful when large errors are more undesirable
+
+Appropriate metric is dependent on use case
+library(Metrics)
+rmse(actual, predicted)
+
+## Exercises
+
+Evaluate a regression tree model
+
+Predict the final grade for all students in the test set. The grade is on a 0-20 scale. Evaluate the model based on test set RMSE (Root Mean Squared Error). RMSE tells us approximately how far away our predictions are from the true values.
+
+```{r}
+# Generate predictions on a test set
+pred <- predict(object = grade_model,   # model object 
+                newdata = grade_test)  # test dataset
+
+# Compute the RMSE
+rmse(actual = grade_test$final_grade, 
+     predicted = pred)
+```
+
+# What are the hyperparameters of a decision tree?
+
+Room for improvement
+Knobs to turn to affect tree growth - hyperparameters
+
+rpart function has control parameter
+if control parameter is not used then default values will be used
+
+parameters:
+size and complexity of tree: minsplit (minimum number of data points required to attempt a split, default=20), cp (complexity parameter, default = 0.1), maxdepth (depth of a decision tree, default = 30)
+
+Cost-complexity parameter (CP)
+rpart stores cP in a table in the model or use plotcp(model)
+find the row and CP value with least xerror
+prune(tree = model, cp = cp_opt) - function to prune the tree and make it better
+
+## Exercises
+
+Tuning the model
+
+Tune (or "trim") the model using the prune() function by finding the best "CP" value (CP stands for "Complexity Parameter").
+
+```{r}
+# Plot the "CP Table"
+plotcp(grade_model)
+
+# Print the "CP Table"
+print(grade_model$cptable)
+
+# Retreive optimal cp value based on cross-validated error
+opt_index <- which.min(grade_model$cptable[, "xerror"])
+cp_opt <- grade_model$cptable[opt_index, "CP"]
+
+# Prune the model (to optimized cp value)
+grade_model_opt <- prune(tree = grade_model, 
+                         cp = cp_opt)
+                          
+# Plot the optimized model
+rpart.plot(x = grade_model_opt, yesno = 2, type = 0, extra = 0)
+```
+
+# Grid search for model selection
+
+Model selection or hyperparameter selection
+Grid search - model technique
+Construct a grid and train a sequence of models and evaluate them
+
+Important definitions:
+Grid search - exhaustive search through specified hyperparameters
+Grid - hyperparameter combos that will be iterated over
+Goals - iterate a large number of parameter settings to find the best model
+How is it chosen? Choose approrpriate performance metric
+Performance of each model is evaluated - best one is selected as a winner
+Run small grid, see if minimum and maximum is within the range, then expand
+
+Establish a list of possible values for hyperparameters
+expand.grid(column names) can combine these hyperparameters into a grid
+Create empty lists to store the models
+Use a loop in R to iterate the rows of the grid
+Evaluate models using rmse
+Find the model with the min rmse
+
+## Exercises
+
+Generate a grid of hyperparameter values
+
+Use expand.grid() to generate a grid of maxdepth and minsplit values.
+
+```{r}
+# Establish a list of possible values for minsplit and maxdepth
+minsplit <- seq(1, 4, 1)
+maxdepth <- seq(1, 6, 1)
+
+# Create a data frame containing all combinations 
+hyper_grid <- expand.grid(minsplit = minsplit, maxdepth = maxdepth)
+
+# Check out the grid
+head(hyper_grid)
+
+# Print the number of grid combinations
+nrow(hyper_grid)
+```
+
+Generate a grid of models
+
+In this exercise, we will write a simple loop to train a "grid" of models and store the models in a list called grade_models. R users who are familiar with the apply functions in R could think about how this loop could be easily converted into a function applied to a list as an extra-credit thought experiment.
+
+```{r}
+# Number of potential models in the grid
+num_models <- nrow(hyper_grid)
+
+# Create an empty list to store models
+grade_models <- list()
+
+# Write a loop over the rows of hyper_grid to train the grid of models
+for (i in 1:num_models) {
+
+    # Get minsplit, maxdepth values at row i
+    minsplit <- hyper_grid$minsplit[i]
+    maxdepth <- hyper_grid$maxdepth[i]
+
+    # Train a model and store in the list
+    grade_models[[i]] <- rpart(formula = final_grade ~ ., 
+                               data = grade_train, 
+                               method = "anova",
+                               minsplit = minsplit,
+                               maxdepth = maxdepth)
+}
+```
+
+Evaluate the grid
+
+Earlier in the chapter we split the dataset into three parts: training, validation and test.
+
+```{r}
+# Number of potential models in the grid
+num_models <- length(grade_models)
+
+# Create an empty vector to store RMSE values
+rmse_values <- c()
+
+# Write a loop over the models to compute validation RMSE
+for (i in 1:num_models) {
+
+    # Retreive the i^th model from the list
+    model <- grade_models[[i]]
+    
+    # Generate predictions on grade_valid 
+    pred <- predict(object = model,
+                    newdata = grade_valid)
+    
+    # Compute validation RMSE and add to the 
+    rmse_values[i] <- rmse(actual = grade_valid$final_grade, 
+                           predicted = pred)
+}
+
+# Identify the model with smallest validation set RMSE
+best_model <- grade_models[[which.min(rmse_values)]]
+
+# Print the model paramters of the best model
+best_model$control
+
+# Compute test set RMSE on best_model
+pred <- predict(object = best_model,
+                newdata = grade_test)
+rmse(actual = grade_test$final_grade, 
+     predicted = grade_test$final_grade)
+```
+
+# Intro to bagged trees
+
+Major drawback to decision trees is high variance
+- Small change can result in different split
+
+Bagged trees averages many trees into one
+- Easiest way to create an ensemble
+- Can be used with other methods besides trees
+- Prevent overfitting
+
+Bagging is shorthand for bootstrap aggregating
+- sample rows at random with replacement
+- possible for single training example to be drawn more than once
+- some rows are represented multiple times and some are absent
+- similar data than what we started with
+
+1. draw samples with replacement from training set (usually 0.5n)
+2. train a model for each bootstrapped sample. The more the better
+3. Each bootstrapped is considered in the average to get a final prediction.
+4. Bagged prediction "The wisdom of the crowds"
+
+library(ipred)
+bagging(formula, data)
+
+## Exercises
+
+Train a bagged tree model
+
+Let's start by training a bagged tree model. You'll be using the bagging() function from the ipredpackage. The number of bagged trees can be specified using the nbagg parameter, but here we will use the default (25).
+
+If we want to estimate the model's accuracy using the "out-of-bag" (OOB) samples, we can set the the coob parameter to TRUE. The OOB samples are the training obsevations that were not selected into the bootstrapped sample (used in training). Since these observations were not used in training, we can use them instead to evaluate the accuracy of the model (done automatically inside the bagging() function).
+
+```{r}
+# Bagging is a randomized model, so let's set a seed (123) for reproducibility
+set.seed(123)
+
+# Train a bagged model
+credit_model <- bagging(formula = default ~ ., 
+                        data = credit_train,
+                        coob = TRUE)
+
+# Print the model
+print(credit_model)
+```
+
+# Evaluating bagged tree performance
+
+class_predictions <- predict(model_object, newdata, type)
+type = "class" will return classification labels
+
+confusionMatrix(data, reference)
+ROC Curve - useful tool for classification
+AUC curve - area under the curve (larger is better)
+
+library(Metrics)
+auc(actual, predicted)
+- function returns a single value
+
+## Exercises
+
+Prediction and confusion matrix
+
+As you saw in the video, a confusion matrix is a very useful tool for examining all possible outcomes of your predictions (true positive, true negative, false positive, false negative).
+
+In this exercise, you will predict those who will default using bagged trees. You will also create the confusion matrix using the confusionMatrix() function from the caret package.
+
+```{r}
+# Generate predicted classes using the model object
+class_prediction <- predict(object = credit_model,    
+                            newdata = credit_test,  
+                            type = "class")  # return classification labels
+
+# Print the predicted classes
+print(class_prediction)
+
+# Calculate the confusion matrix for the test set
+confusionMatrix(data = class_prediction,       
+                reference = credit_test$default)  
+```
+
+Predict on a test set and compute AUC
+
+In binary classification problems, we can predict numeric values instead of class labels. In fact, class labels are created only after you use the model to predict a raw, numeric, predicted value for a test point.
+
+The predicted label is generated by applying a threshold to the predicted value, such that all tests points with predicted value greater than that threshold get a predicted label of "1" and, points below that threshold get a predicted label of "0".
+
+In this exercise, generate predicted values (rather than class labels) on the test set and evaluate performance based on AUC (Area Under the ROC Curve). The AUC is a common metric for evaluating the discriminatory ability of a binary classification model.
+
+```{r}
+# Generate predictions on the test set
+pred <- predict(object = credit_model,
+                newdata = credit_test,
+                type = "prob")
+
+# `pred` is a matrix
+class(pred)
+                
+# Look at the pred format
+head(pred)
+                
+# Compute the AUC (`actual` must be a binary (or 1/0 numeric) vector)
+auc(actual = ifelse(credit_test$default == "yes", 1, 0), 
+    predicted = pred[,"yes"])                    
+```
+
+# Use caret for cross-validating models
+
+Single test and train set can affect the model if they have big variance depending on how you split the data.
+CV - average multiple estimates
+
+Most popular: K-fold cross-validation
+Partition into K subsets of equal sizes
+Run K-1 separate experiments - one of them will be a test set
+Evaluate model's performance on the test set
+K-1 estimates of test set AUC and average of that is the CV estimate of AUC
+CV takes longer but more accurate, so recommended for smaller dataset
+
+caret package
+```{r}
+library(caret)
+set.seed(1)
+ctrl <- trainControl(method = "cv", # cross-validation
+              number = 5,  # 5 folds
+              classProbs=TRUE, # For AUC
+              summaryFunction = twoClassSummary) #For AUC
+
+train(formula,
+      data,
+      method = "treebag",
+      metric = "ROC",
+      trControl = ctrl)
+```
+
+## Exercises
+
+Cross-validate a bagged tree model in caret
+
+Use caret::train() with the "treebag" method to train a model and evaluate the model using cross-validated AUC. The caret package allows the user to easily cross-validate any model across any relevant performance metric. In this case, we will use 5-fold cross validation and evaluate cross-validated AUC (Area Under the ROC Curve).
+
+```{r}
+# Specify the training configuration
+ctrl <- trainControl(method = "cv",     # Cross-validation
+                     number = 5,      # 5 folds
+                     classProbs = TRUE,                  # For AUC
+                     summaryFunction = twoClassSummary)  # For AUC
+
+# Cross validate the credit model using "treebag" method; 
+# Track AUC (Area under the ROC curve)
+set.seed(1)  # for reproducibility
+credit_caret_model <- train(default ~ .,
+                            data = credit_train, 
+                            method = "treebag",
+                            metric = "ROC",
+                            trControl = ctrl)
+
+# Look at the model object
+print(credit_caret_model)
+
+# Inspect the contents of the model list 
+names(credit_caret_model)
+
+# Print the CV AUC
+credit_caret_model$results[,"ROC"]
+```
+
+Generate predictions from the caret model
+
+Generate predictions on a test set for the caret model.
+
+```{r}
+# Generate predictions on the test set
+pred <- predict(object = credit_caret_model, 
+                newdata = credit_test,
+                type = "prob")
+
+# Compute the AUC (`actual` must be a binary (or 1/0 numeric) vector)
+auc(actual = ifelse(credit_test$default == "yes", 1, 0), 
+                    predicted = pred[,"yes"])
+```
+
+Compare test set performance to CV performance
+
+In this excercise, you will print test set AUC estimates that you computed in previous exercises. These two methods use the same code underneath, so the estimates should be very similar.
+
+```{r}
+# Print ipred::bagging test set AUC estimate
+print(credit_ipred_model_test_auc)
+
+# Print caret "treebag" test set AUC estimate
+print(credit_caret_model_test_auc)
+                
+# Compare to caret 5-fold cross-validated AUC
+credit_caret_model$results[, "ROC"]
+```
+
+# Intro to Random Forest
+
+Improvement on bagged trees
+Better performance
+Simpler to train and tune
+Similar to boosted trees
+
+RF: Sample of trees based on bootstrapped samples
+- Difference: randomness is added at each split - only consider a random sample of subset of features instead of ALL of the features
+- leads to trees that are more different and improves upon bagging by reducing correlated trees
+
+```{r}
+library(randomForest)
+randomForest(formula, data)
+```
+
+Default RF has 500 trees
+
+## Exercises
+
+Train a Random Forest model
+
+Here you will use the randomForest() function from the randomForest package to train a Random Forest classifier to predict loan default.
+
+```{r}
+# Train a Random Forest
+set.seed(1)  # for reproducibility
+credit_model <- randomForest(formula = default ~ ., 
+                             data = credit_train)
+                             
+# Print the model output                             
+print(credit_model)
+```
+
+# Understanding RF model output
+
+Whta do the outputs mean?
+Type of random forest: Either classification or regression
+Number of trees: 500 by default
+Number of variables tried at each split: mtry
+OOB estimate of error: out of bag estimate, error across samples not selected into boostrap training set
+confusion matrix: because classification
+
+bootstrap samples
+absent samples = out of bag samples
+built-in validation set without extra work
+classification error across all teh samples is oob error
+rows represent number of trees in the forest
+i'th row is the error up to and including that tree
+
+last row shows final oob error
+plot of RF model object is trees vs error - to figure out how many are necessary
+error rates level out around 300 trees - reduce computing power
+
+## Exercises
+
+Evaluate out-of-bag error
+
+Here you will plot the OOB error as a function of the number of trees trained, and extract the final OOB error of the Random Forest model from the trained model object.
+
+```{r}
+# Grab OOB error matrix & take a look
+err <- credit_model$err.rate
+head(err)
+
+# Look at final OOB error rate (last row in err matrix)
+oob_err <- err[nrow(err), "OOB"]
+print(oob_err)
+
+# Plot the model trained in the previous exercise
+plot(credit_model)
+
+# Add a legend since it doesn't have one by default
+legend(x = "right", 
+       legend = colnames(err),
+       fill = 1:ncol(err))
+```
+
+Evaluate model performance on a test set
+
+Use the caret::confusionMatrix() function to compute test set accuracy and generate a confusion matrix. Compare the test set accuracy to the OOB accuracy.
+
+```{r}
+# Generate predicted classes using the model object
+class_prediction <- predict(object = credit_model,   # model object 
+                            newdata = credit_test,  # test dataset
+                            type = "class") # return classification labels
+                            
+# Calculate the confusion matrix for the test set
+cm <- confusionMatrix(data = class_prediction,       # predicted classes
+                      reference = credit_test$default)  # actual classes
+print(cm)
+
+# Compare test set accuracy to OOB accuracy
+paste0("Test Accuracy: ", cm$overall[1])
+paste0("OOB Accuracy: ", 1 - oob_err)
+```
+
+# OOB Error vs test set error
+
