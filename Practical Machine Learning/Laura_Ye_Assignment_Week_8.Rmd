@@ -1,0 +1,77 @@
+---
+title: "Assignment Week 8"
+author: "Laura Ye"
+date: "March 11, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+## Goals and Purpose
+
+In this assignment, we will use a banking telemarketing data set (Title: Bank Marketing) to build a model that determines whether a customer will subscribe to a bank term deposit. We will be using logistic regression, decision trees, and random forest models to generate the model. The performance of each model will be evaluated and compared using the confusion matrix, ROC and AUC, to select the best model.
+
+## About the data set
+
+To take an initial look at the data set, let's load it into our workspace.
+
+```{r}
+library(tidyverse)
+bank_data <- read_delim("bank-additional-full.csv", ";")
+dim(bank_data)
+names(bank_data)
+```
+
+There are over 40,000 rows of observations in this data set, with 20 predictor variables and one dependent variable, "y".
+
+### Missing Data
+
+Let's further examine the data set and start by examining the missing data.
+
+```{r}
+print (paste0("Number of NAs in the whole data set: ", sum(is.na(bank_data))))
+
+for (i in names(bank_data)){
+  print (paste0("Number of NAs in ", i, " column: ", sum(is.na(bank_data %>% select(i)))))
+}
+```
+
+All of the NAs reside in the "nr.employed" column. This column indicates number of employees for the client.
+
+```{r}
+table(bank_data$nr.employed)
+```
+
+The column also only has one value, so values from this column would most likely not be useful for our model. This column will be removed.
+
+```{r}
+bank_data_clean <- bank_data %>% select(-nr.employed)
+```
+
+#### "Unknown" Data
+
+This data set also has a lot of values that are "unknown" which should be treated as NAs.
+
+Let's see how many values are "unknown" after replacing these values with NAs.
+
+```{r}
+bank_data_clean[bank_data_clean == "unknown"] <- NA
+
+print (paste0("Number of NAs in the whole data set: ", sum(is.na(bank_data_clean))))
+
+for (i in names(bank_data_clean)){
+  print (paste0("% of NAs in ", i, " column: ", round(sum(is.na(bank_data_clean %>% select(i)))/nrow(bank_data_clean)*100, 1)))
+}
+```
+
+The NAs/Unknowns are congregated in the job, marital, education, default, housing, and loan columns.
+
+## Logistic Regression
+
+## Decision Trees (with hyperparameter optimization)
+
+## Random Forest
+
+## Summary
