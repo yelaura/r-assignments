@@ -68,10 +68,76 @@ for (i in names(bank_data_clean)){
 
 The NAs/Unknowns are congregated in the job, marital, education, default, housing, and loan columns.
 
+For now, we will leave the NAs and preProcess them later while training the models.
+
+Next, let's convert the dependent variable, y, to 0s and 1s.
+
+```{r}
+# Convert y to 0 or 1
+bank_data_clean$y <- ifelse(bank_data_clean$y == "yes", 1, 0)
+```
+
+## Split Data
+
+Since this data set is relatively large, we will split up 80% of the data set into a training set, and 20% of the data set into a test data.
+
+```{r}
+library(caret)
+set.seed(620)
+train_index <- createDataPartition(bank_data_clean$y,
+                                   p=0.8,
+                                   list=FALSE,
+                                   times=1)
+
+train <- bank_data_clean[train_index,]
+test <- bank_data_clean[-train_index,]
+
+nrow(train)/nrow(bank_data_clean)
+```
+
+Now that we have a train and test set, we are ready to build three different types of models to compare and evaluate their performance.
+
 ## Logistic Regression
+
+With logistic regression,
+
+- always start with median imputation; also try knn if data not missing at random
+- for linear models: center and scale
+- for linear models: try pca and spatialsign
+- tree based dont need preprocessing; usually median imputation is enough
+- nzv and zv to remove zero variance columns
 
 ## Decision Trees (with hyperparameter optimization)
 
+For the decision tree, we will train an initial classification tree model, and then tune the classification tree model by "pruning" the tree and using grid search.
+
+First, let's train a classification tree model.
+
+```{r}
+library(rpart)
+library(rpart.plot)
+
+class_tree_model <- rpart(formula = y ~ .,
+                          data = train,
+                          method = "class")
+
+print(class_tree_model)
+
+rpart.plot(class_tree_model, yesno = 2, type = 0, extra = 0)
+```
+
+This gives us a nice initial classification tree which is what we'll use to tune the model.
+
+### Tuning the model
+
+We will use grid search now with minsplit, maxdepth, and CP to tune this model.
+
+```{r}
+
+```
+
 ## Random Forest
+
+
 
 ## Summary

@@ -456,20 +456,6 @@ rpart.plot(x = grade_model_opt, yesno = 2, type = 0, extra = 0)</code></pre>
 <p>Use expand.grid() to generate a grid of maxdepth and minsplit values.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBFc3RhYmxpc2ggYSBsaXN0IG9mIHBvc3NpYmxlIHZhbHVlcyBmb3IgbWluc3BsaXQgYW5kIG1heGRlcHRoXG5taW5zcGxpdCA8LSBzZXEoMSwgNCwgMSlcbm1heGRlcHRoIDwtIHNlcSgxLCA2LCAxKVxuXG4jIENyZWF0ZSBhIGRhdGEgZnJhbWUgY29udGFpbmluZyBhbGwgY29tYmluYXRpb25zIFxuaHlwZXJfZ3JpZCA8LSBleHBhbmQuZ3JpZChtaW5zcGxpdCA9IG1pbnNwbGl0LCBtYXhkZXB0aCA9IG1heGRlcHRoKVxuXG4jIENoZWNrIG91dCB0aGUgZ3JpZFxuaGVhZChoeXBlcl9ncmlkKVxuXG4jIFByaW50IHRoZSBudW1iZXIgb2YgZ3JpZCBjb21iaW5hdGlvbnNcbm5yb3coaHlwZXJfZ3JpZClcbmBgYCJ9 -->
-<pre class="r"><code># Establish a list of possible values for minsplit and maxdepth
-minsplit &lt;- seq(1, 4, 1)
-maxdepth &lt;- seq(1, 6, 1)
-
-# Create a data frame containing all combinations 
-hyper_grid &lt;- expand.grid(minsplit = minsplit, maxdepth = maxdepth)
-
-# Check out the grid
-head(hyper_grid)
-
-# Print the number of grid combinations
-nrow(hyper_grid)</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Generate a grid of models</p>
