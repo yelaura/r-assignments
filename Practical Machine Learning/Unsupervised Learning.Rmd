@@ -390,4 +390,349 @@ table(km.pokemon$cluster, cut.pokemon)
 
 hierarchical clustering model assigns most of the observations to cluster 1, while the k-means algorithm distributes the observations relatively evenly among all clusters. It's important to note that there's no consensus on which method produces better clusters. Judgement call.
 
+# Intro to PCA
 
+Unsupervised machine learning - dimensionality reduction
+- find structure in features
+- aid in visualization
+
+Principal component analysis
+3 goals
+1. Find a linear combo of variables to create principal components - adds the features together
+2. Maintain most variance in the data
+3. PC are uncorrelated (orthogonal to each other)
+
+PCA Intuition
+2 dimensions (x and y)
+Fina a lower dimensional state to describe the original data.
+2D to 1D: 1 principal component.
+Fit linear line to the data.
+- First principal component of the data
+Project values on the new line
+
+Visualization of high dimensional data
+- hard to visualize more than 3d
+- can be easy to separate data using principal component
+- first component retains 92% of the variance in the data
+
+prcomp (x, scale, center)
+x = data
+scale = scale to 1 before PCA
+center = center around zero (recommend leaving true)
+
+summary(prcomp):
+proportion of variance - variance explained by each PC
+cumulative variance - variance as each component is added
+standard deviation
+
+## Exercises
+
+PCA using prcomp()
+In this exercise, you will create your first PCA model and observe the diagnostic results.
+
+We have loaded the Pokemon data from earlier, which has four dimensions, and placed it in a variable called pokemon. Your task is to create a PCA model of the data, then to inspect the resulting model using the summary() function.
+
+```{r}
+# Perform scaled PCA: pr.out
+pr.out <- prcomp(pokemon, scale=TRUE, center=TRUE)
+
+# Inspect model output
+summary(pr.out)
+```
+
+# Visualizing and interpreting PCA results
+
+Biplot - ```biplot(pr.out)```
+- PC2 vs PC1
+- original features are correlated because dimensions are the same
+
+scree plot
+```{r}
+pr.var <- pr.out$sdev^2 #square the stderr of each component (variance is defined as stderr^2)
+pve <- pr.var / sum(pr.var) # variance proportion for each component
+```
+- show proportion of variance explained by each PC
+- or cumulative variance
+- when PC# = original dimension of the data, the proportion of variance explained is 1.0
+
+## Exercises
+
+Variance explained
+The second common plot type for understanding PCA models is a scree plot. A scree plot shows the variance explained as the number of principal components increases. Sometimes the cumulative variance explained is plotted as well.
+
+In this and the next exercise, you will prepare data from the pr.out model you created at the beginning of the chapter for use in a scree plot. Preparing the data for plotting is required because there is not a built-in function in R to create this type of plot.
+
+```{r}
+# Variability of each principal component: pr.var
+pr.var <- pr.out$sdev^2
+
+# Variance explained by each principal component: pve
+pve <- pr.var / sum(pr.var)
+```
+
+Visualize variance explained
+Now you will create a scree plot showing the proportion of variance explained by each principal component, as well as the cumulative proportion of variance explained.
+
+Recall from the video that these plots can help to determine the number of principal components to retain. One way to determine the number of principal components to retain is by looking for an elbow in the scree plot showing that as the number of principal components increases, the rate at which variance is explained decreases substantially. In the absence of a clear elbow, you can use the scree plot as a guide for setting a threshold.
+
+```{r}
+# Plot variance explained for each principal component
+plot(pve, xlab = "Principal Component",
+     ylab = "Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+
+# Plot cumulative proportion of variance explained
+plot(cumsum(pve), xlab = "Principal Component",
+     ylab = "Cumulative Proportion of Variance Explained",
+     ylim = c(0, 1), type = "b")
+```
+
+# Practical Issues with PCA
+
+3 types of items to consider
+
+1. Scaling data
+2. Missing data (sometimes)
+- not include or drop
+- estimate or impute
+3. Categorical data
+- do not include
+- encode categorical features as numbers
+
+Scaling the data
+- when data is in a different unit or order of magnitude, useful to scale or center
+- Check biplot with scaling and without scaling
+- with scaling, you find more even distribution of the loading vectors in pca
+- without centering and scaling, two loading vectors might stick out because their order of magnitude is higher and hence variance is higher
+
+
+## Exercises
+
+Practical issues: scaling
+You saw in the video that scaling your data before doing PCA changes the results of the PCA modeling. Here, you will perform PCA with and without scaling, then visualize the results using biplots.
+
+Sometimes scaling is appropriate when the variances of the variables are substantially different. This is commonly the case when variables have different units of measurement, for example, degrees Fahrenheit (temperature) and miles (distance). Making the decision to use scaling is an important step in performing a principal component analysis.
+
+```{r}
+# Mean of each variable
+colMeans(pokemon)
+
+# Standard deviation of each variable
+apply(pokemon, 2, sd)
+
+# PCA model with scaling: pr.with.scaling
+pr.with.scaling <- prcomp(pokemon, scale=TRUE)
+
+# PCA model without scaling: pr.without.scaling
+pr.without.scaling <- prcomp(pokemon, scale=FALSE)
+
+# Create biplots of both for comparison
+biplot(pr.with.scaling)
+biplot(pr.without.scaling)
+```
+
+> The new Total column contains much more variation, on average, than the other four columns, so it has a disproportionate effect on the PCA model when scaling is not performed. After scaling the data, there's a much more even distribution of the loading vectors.
+
+# Intro to case study
+
+2 types of clustering
+1 type of dimensionality reduction
+
+Case study
+- reinforce learning
+- add steps not covered (preparing data)
+- emphasize creativity
+
+Example use case
+Measuring nuclei of cells
+Each record is ten features measured of each cell nuclei
+Includes diagnosis (not used)
+
+Steps
+Download data and prepare
+EDA
+PCA + interpret
+Two types of clustering
+Understand and compare
+Combine PCA and clustering
+
+## Exercises
+
+Preparing the data
+Unlike prior chapters, where we prepared the data for you for unsupervised learning, the goal of this chapter is to step you through a more realistic and complete workflow.
+
+Recall from the video that the first step is to download and prepare the data.
+
+```{r}
+url <- "http://s3.amazonaws.com/assets.datacamp.com/production/course_1903/datasets/WisconsinCancer.csv"
+
+# Download the data: wisc.df
+wisc.df <- read.csv(url)
+
+# Convert the features of the data: wisc.data
+wisc.data <- as.matrix(wisc.df[3:32])
+
+# Set the row names of wisc.data
+row.names(wisc.data) <- wisc.df$id
+
+# Create diagnosis vector
+diagnosis <- as.numeric(wisc.df$diagnosis == "M")
+```
+
+Performing PCA
+The next step in your analysis is to perform PCA on wisc.data.
+
+You saw in the last chapter that it's important to check if the data need to be scaled before performing PCA. Recall two common reasons for scaling data:
+
+The input variables use different units of measurement.
+The input variables have significantly different variances.
+
+```{r}
+# Check column means and standard deviations
+colMeans(wisc.data)
+apply(wisc.data, 2, sd)
+
+# Execute PCA, scaling if appropriate: wisc.pr
+wisc.pr <- prcomp(wisc.data, scale=TRUE)
+
+# Look at summary of results
+summary(wisc.pr)
+```
+
+Interpreting PCA results
+Now you'll use some visualizations to better understand your PCA model. You were introduced to one of these visualizations, the biplot, in an earlier chapter.
+
+You'll run into some common challenges with using biplots on real-world data containing a non-trivial number of observations and variables, then you'll look at some alternative visualizations. You are encouraged to experiment with additional visualizations before moving on to the next exercise.
+
+```{r}
+# Create a biplot of wisc.pr
+biplot(wisc.pr)
+
+# Scatter plot observations by components 1 and 2
+plot(wisc.pr$x[, c(1, 2)], col = (diagnosis + 1), 
+     xlab = "PC1", ylab = "PC2")
+
+# Repeat for components 1 and 3
+plot(wisc.pr$x[, c(1, 3)], col = (diagnosis + 1), 
+     xlab = "PC1", ylab = "PC3")
+```
+
+>Because principal component 2 explains more variance in the original data than principal component 3, you can see that the first plot has a cleaner cut separating the two subgroups.
+
+Variance explained
+In this exercise, you will produce scree plots showing the proportion of variance explained as the number of principal components increases. The data from PCA must be prepared for these plots, as there is not a built-in function in R to create them directly from the PCA model.
+
+As you look at these plots, ask yourself if there's an elbow in the amount of variance explained that might lead you to pick a natural number of principal components. If an obvious elbow does not exist, as is typical in real-world datasets, consider how else you might determine the number of principal components to retain based on the scree plot.
+
+```{r}
+# Set up 1 x 2 plotting grid
+par(mfrow = c(1, 2))
+
+# Calculate variability of each component
+pr.var <- wisc.pr$sdev^2
+
+# Variance explained by each principal component: pve
+pve <- pr.var / sum(pr.var)
+
+# Plot variance explained for each principal component
+plot(pve, xlab = "Principal Component", 
+     ylab = "Proportion of Variance Explained", 
+     ylim = c(0, 1), type = "b")
+
+# Plot cumulative proportion of variance explained
+plot(cumsum(pve), xlab = "Principal Component", 
+     ylab = "Cumulative Proportion of Variance Explained", 
+     ylim = c(0, 1), type = "b")
+```
+
+> Before moving on, answer the following question: What is the minimum number of principal components needed to explain 80% of the variance in the data?
+
+> 5
+
+# PCA Review
+
+Downloaded data and prepared for modeling
+EDA
+Performed detailed PCA
+
+Next:
+Complete hierarchical and kmeans clustering
+Combine PCA and clustering
+Constrast results of hierarchical and diagnosis
+Compare Hier and Kmeans clustering
+PCA as a pre-processing step for clustering
+
+## Exercises
+
+Hierarchical clustering of case data
+The goal of this exercise is to do hierarchical clustering of the observations. Recall from Chapter 2 that this type of clustering does not assume in advance the number of natural groups that exist in the data.
+
+As part of the preparation for hierarchical clustering, distance between all pairs of observations are computed. Furthermore, there are different ways to link clusters together, with single, complete, and average being the most common linkage methods.
+
+```{r}
+# Scale the wisc.data data: data.scaled
+data.scaled <- scale(wisc.data)
+
+# Calculate the (Euclidean) distances: data.dist
+data.dist <- dist(data.scaled)
+
+# Create a hierarchical clustering model: wisc.hclust
+wisc.hclust <- hclust(data.dist, method="complete")
+```
+
+Selecting number of clusters
+In this exercise, you will compare the outputs from your hierarchical clustering model to the actual diagnoses. Normally when performing unsupervised learning like this, a target variable isn't available. We do have it with this dataset, however, so it can be used to check the performance of the clustering model.
+
+When performing supervised learning???that is, when you're trying to predict some target variable of interest and that target variable is available in the original data???using clustering to create new features may or may not improve the performance of the final model. This exercise will help you determine if, in this case, hierarchical clustering provides a promising new feature.
+
+```{r}
+# Cut tree so that it has 4 clusters: wisc.hclust.clusters
+wisc.hclust.clusters <- cutree(wisc.hclust, k=4)
+
+# Compare cluster membership to actual diagnoses
+table(diagnosis, wisc.hclust.clusters)
+```
+
+> Four clusters were picked after some exploration. Before moving on, you may want to explore how different numbers of clusters affect the ability of the hierarchical clustering to separate the different diagnoses.
+
+k-means clustering and comparing results
+As you now know, there are two main types of clustering: hierarchical and k-means.
+
+In this exercise, you will create a k-means clustering model on the Wisconsin breast cancer data and compare the results to the actual diagnoses and the results of your hierarchical clustering model. Take some time to see how each clustering model performs in terms of separating the two diagnoses and how the clustering models compare to each other.
+
+```{r}
+# Create a k-means model on wisc.data: wisc.km
+wisc.km <- kmeans(scale(wisc.data), 2, nstart=20)
+
+# Compare k-means to actual diagnoses
+table(wisc.km$cluster, diagnosis)
+
+# Compare k-means to hierarchical clustering
+table(wisc.hclust.clusters, wisc.km$cluster)
+```
+
+> Looking at the second table you generated, it looks like clusters 1, 2, and 4 from the hierarchical clustering model can be interpreted as the cluster 1 equivalent from the k-means algorithm, and cluster 3 can be interpreted as the cluster 2 equivalent.
+
+Clustering on PCA results
+In this final exercise, you will put together several steps you used earlier and, in doing so, you will experience some of the creativity that is typical in unsupervised learning.
+
+Recall from earlier exercises that the PCA model required significantly fewer features to describe 80% and 95% of the variability of the data. In addition to normalizing data and potentially avoiding overfitting, PCA also uncorrelates the variables, sometimes improving the performance of other modeling techniques.
+
+Let's see if PCA improves or degrades the performance of hierarchical clustering.
+
+
+```{r}
+# Create a hierarchical clustering model: wisc.pr.hclust
+wisc.pr.hclust <- hclust(dist(wisc.pr$x[, 1:7]), method = "complete")
+
+# Cut model into 4 clusters: wisc.pr.hclust.clusters
+wisc.pr.hclust.clusters <- cutree(wisc.pr.hclust, k=4)
+
+# Compare to actual diagnoses
+table(wisc.hclust.clusters, diagnosis)
+table(wisc.pr.hclust.clusters, diagnosis)
+table(wisc.km$cluster, diagnosis)
+
+# Compare to k-means and hierarchical
+table(wisc.pr.hclust.clusters, wisc.km$cluster)
+```
