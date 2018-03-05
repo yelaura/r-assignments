@@ -34,7 +34,9 @@ Let's further examine the data set and start by examining the missing data.
 print (paste0("Number of NAs in the whole data set: ", sum(is.na(bank_data))))
 
 for (i in names(bank_data)){
-  print (paste0("Number of NAs in ", i, " column: ", sum(is.na(bank_data %>% select(i)))))
+  if (sum(is.na(bank_data %>% select(i)))){
+    print (paste0("Number of NAs in ", i, " column: ", sum(is.na(bank_data %>% select(i)))))
+  }
 }
 ```
 
@@ -61,41 +63,44 @@ bank_data_clean[bank_data_clean == "unknown"] <- NA
 
 print (paste0("Number of NAs in the whole data set: ", sum(is.na(bank_data_clean))))
 
+print ("Columns with NAs:")
+
 for (i in names(bank_data_clean)){
-  print (paste0("% of NAs in ", i, " column: ", round(sum(is.na(bank_data_clean %>% select(i)))/nrow(bank_data_clean)*100, 1)))
+  if(sum(is.na(bank_data_clean %>% select(i))) != 0){
+    print (paste0("% of NAs in ", i, " column: ", round(sum(is.na(bank_data_clean %>% select(i)))/nrow(bank_data_clean)*100, 1)))
+  }
 }
 ```
 
 The NAs/Unknowns are congregated in the job, marital, education, default, housing, and loan columns.
 
-For now, we will leave the NAs and preProcess them later while training the models.
+#### PreProcess Response Variable
 
-Next, let's convert the dependent variable, y, to 0s and 1s.
+Let's convert the dependent variable, y, to 0s and 1s.
 
 ```{r}
-# Convert y to 0 or 1
+# Convert y to 0 or 1 as a factor since there are only 2 possibilities.
 bank_data_clean$y <- ifelse(bank_data_clean$y == "yes", 1, 0)
+bank_data_clean$y <- factor(bank_data_clean$y)
 ```
 
-## Split Data
+### Split Data
 
-Since this data set is relatively large, we will split up 80% of the data set into a training set, and 20% of the data set into a test data.
+Since this data set is relatively large, we will split up 70% of the data set into a training set, and 15% into a validation set, and the rest 15% into a test set.
 
 ```{r}
-library(caret)
 set.seed(620)
-train_index <- createDataPartition(bank_data_clean$y,
-                                   p=0.8,
-                                   list=FALSE,
-                                   times=1)
+assignment <- sample(1:3, size = nrow(bank_data_clean), prob = c(0.7,0.15,0.15), replace = TRUE)
 
-train <- bank_data_clean[train_index,]
-test <- bank_data_clean[-train_index,]
+train <- bank_data_clean[assignment == 1, ]
+valid <- bank_data_clean[assignment == 2, ]
+test <- bank_data_clean[assignment == 3, ]
 
+print("Percentage of rows in training set:")
 nrow(train)/nrow(bank_data_clean)
 ```
 
-Now that we have a train and test set, we are ready to build three different types of models to compare and evaluate their performance.
+Now that we have a train, validation, and test set, we are ready to build three different types of models to compare and evaluate their performance.
 
 ## Logistic Regression
 
@@ -109,14 +114,15 @@ With logistic regression,
 
 ## Decision Trees (with hyperparameter optimization)
 
-For the decision tree, we will train an initial classification tree model, and then tune the classification tree model by "pruning" the tree and using grid search.
+For the decision tree, we will train an initial classification tree model, and then tune the classification tree model using grid search.
 
-First, let's train a classification tree model.
+Let's train a basic classification tree model.
 
 ```{r}
 library(rpart)
 library(rpart.plot)
 
+set.seed(620)
 class_tree_model <- rpart(formula = y ~ .,
                           data = train,
                           method = "class")
@@ -130,14 +136,118 @@ This gives us a nice initial classification tree which is what we'll use to tune
 
 ### Tuning the model
 
-We will use grid search now with minsplit, maxdepth, and CP to tune this model.
+The three hyperparameters we'll take a look at will be cp, minsplit, and max depth.
+
+First, let's take a look at what the ideal value for cp should be. 
 
 ```{r}
+(class_tree_model$cptable)
+```
 
+Since the lowest x-val relative error is already at the lowest and default cp value, this model does not need to be pruned based on cp value.
+
+Next, we will use grid search with minsplit and maxdepth to further tune this model.
+
+```{r}
+# establish hyperparameter ranges
+minsplit <- seq(1, 20, 1)
+maxdepth <- seq(1, 30, 1)
+
+# create a dataframe encompassing all the possible combinations
+hyper_grid <- expand.grid(minsplit = minsplit, maxdepth = maxdepth)
+
+print(paste0("Total combinations: ", nrow(hyper_grid)))
+head(hyper_grid)
+```
+
+Next, let's define a function that will return a list of classification tree models based on the parameters in our hyperparameter grid.
+
+```{r}
+class_tree_model <- function (parameters){
+  models <- list()
+  
+  for (i in 1:nrow(parameters)){
+    models[[i]] <- rpart(formula = y ~ .,
+                         data = train,
+                         method = "class",
+                         minsplit = parameters$minsplit[i],
+                         maxdepth = parameters$maxdepth[i])
+  }
+  
+  return (models)
+  
+}
+```
+
+Using this function, I just need to pass the hyperparameter grid to generate the list of models that we're comparing.
+
+```{r}
+tuning_models <- class_tree_model(hyper_grid)
+print(length(tuning_models))
+```
+
+The resulting list should contain 360 models, with which we can evaluate using the validation set to determine the best combination of hyperparameters. To evaluate, we will use AUC so that the model with the highest AUC will be chosen.
+
+Like how the list of models was generated using a function, I will now also use a function that takes in a list of models, and the function name of the metric used to evaluate these models.
+
+```{r}
+library(ModelMetrics)
+
+compare_models <- function(list_of_models, metric_fun){
+  results <- c()
+  
+  for (i in 1:length(list_of_models)){
+    predicted <- predict(list_of_models[[i]], valid, type="vector")
+    results[i] <- round(metric_fun(valid$y, predicted), 4)
+  }
+  
+  return(results)
+}
+
+class_metric <- compare_models(tuning_models, auc)
+
+table(class_metric)
+```
+
+AUC for these models are very similar. 10% of the models have the better performing AUC. Let's select these and take a look at the hyperparameters used.
+
+```{r}
+auc_max <- max(class_metric)
+(hyper_grid[class_metric==auc_max,])
+```
+
+From the AUC value, a maxdepth of 3 is ideal and value of minsplit is not significant, so we will keep that at the default value.
+
+### Final Evaluation
+
+Finally, we are ready to train this tuned classification tree model against the test set.
+
+```{r}
+class_final <- rpart(formula = y ~ .,
+                     data = train,
+                     method = "class",
+                     maxdepth = 3)
+
+class_pred <- predict(class_final, test, type="vector")
+
+(class_auc <- auc(test$y, class_pred))
 ```
 
 ## Random Forest
 
+For the random forest model, we will train a randomForest model using the default values, and then tune the randomForest model using mtry, nodesize, and sampsize.
+
+Let's start by tuning a randomForest model using the default parameter values. We will use caret to preProcess the 
+
+```{r}
+set.seed(620)
+rf_model <- train(
+  x = train %>% select(-y), 
+  y = as.matrix(train %>% select(y)),
+  method = "rf",
+  preProcess = "knnImpute"
+)
+```
 
 
 ## Summary

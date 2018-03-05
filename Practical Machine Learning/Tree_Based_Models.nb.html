@@ -194,18 +194,13 @@ $(document).ready(function () {
 <p>You will train a decision tree model to understand which loan applications are at higher risk of default using a subset of the German Credit Dataset. The response variable, called “default”, indicates whether the loan went into a default or not, which means this is a binary classification problem (there are just two classes).</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBMb29rIGF0IHRoZSBkYXRhXG5zdHIoY3JlZGl0c3ViKVxuXG4jIENyZWF0ZSB0aGUgbW9kZWxcbmNyZWRpdF9tb2RlbCA8LSBycGFydChmb3JtdWxhID0gZGVmYXVsdCB+IC4sIFxuICAgICAgICAgICAgICAgICAgICAgIGRhdGEgPSBjcmVkaXRzdWIsIFxuICAgICAgICAgICAgICAgICAgICAgIG1ldGhvZCA9IFwiY2xhc3NcIilcblxuIyBEaXNwbGF5IHRoZSByZXN1bHRzXG5ycGFydC5wbG90KHggPSBjcmVkaXRfbW9kZWwsIHllc25vID0gMiwgdHlwZSA9IDAsIGV4dHJhID0gMClcbmBgYCJ9 -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBMb29rIGF0IHRoZSBkYXRhXG5zdHIoY3JlZGl0c3ViKVxuYGBgIn0= -->
 <pre class="r"><code># Look at the data
-str(creditsub)
-
-# Create the model
-credit_model &lt;- rpart(formula = default ~ ., 
-                      data = creditsub, 
-                      method = &quot;class&quot;)
-
-# Display the results
-rpart.plot(x = credit_model, yesno = 2, type = 0, extra = 0)</code></pre>
+str(creditsub)</code></pre>
 <!-- rnb-source-end -->
+<!-- rnb-output-begin eyJkYXRhIjoiRXJyb3IgaW4gc3RyKGNyZWRpdHN1YikgOiBvYmplY3QgJ2NyZWRpdHN1Yicgbm90IGZvdW5kXG4ifQ== -->
+<pre><code>Error in str(creditsub) : object 'creditsub' not found</code></pre>
+<!-- rnb-output-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -226,38 +221,12 @@ rpart.plot(x = credit_model, yesno = 2, type = 0, extra = 0)</code></pre>
 <p>For this exercise, you’ll randomly split the German Credit Dataset into two pieces: a training set (80%) called credit_train and a test set (20%) that we will call credit_test. We’ll use these two sets throughout the chapter.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBUb3RhbCBudW1iZXIgb2Ygcm93cyBpbiB0aGUgY3JlZGl0IGRhdGEgZnJhbWVcbm4gPC0gbnJvdyhjcmVkaXQpXG5cbiMgTnVtYmVyIG9mIHJvd3MgZm9yIHRoZSB0cmFpbmluZyBzZXQgKDgwJSBvZiB0aGUgZGF0YXNldClcbm5fdHJhaW4gPC0gcm91bmQoMC44ICogbikgXG5cbiMgQ3JlYXRlIGEgdmVjdG9yIG9mIGluZGljZXMgd2hpY2ggaXMgYW4gODAlIHJhbmRvbSBzYW1wbGVcbnNldC5zZWVkKDEyMylcbnRyYWluX2luZGljZXMgPC0gc2FtcGxlKDE6biwgbl90cmFpbilcblxuIyBTdWJzZXQgdGhlIGNyZWRpdCBkYXRhIGZyYW1lIHRvIHRyYWluaW5nIGluZGljZXMgb25seVxuY3JlZGl0X3RyYWluIDwtIGNyZWRpdFt0cmFpbl9pbmRpY2VzLCBdICBcbiAgXG4jIEV4Y2x1ZGUgdGhlIHRyYWluaW5nIGluZGljZXMgdG8gY3JlYXRlIHRoZSB0ZXN0IHNldFxuY3JlZGl0X3Rlc3QgPC0gY3JlZGl0Wy10cmFpbl9pbmRpY2VzLCBdICBcbmBgYCJ9 -->
-<pre class="r"><code># Total number of rows in the credit data frame
-n &lt;- nrow(credit)
-
-# Number of rows for the training set (80% of the dataset)
-n_train &lt;- round(0.8 * n) 
-
-# Create a vector of indices which is an 80% random sample
-set.seed(123)
-train_indices &lt;- sample(1:n, n_train)
-
-# Subset the credit data frame to training indices only
-credit_train &lt;- credit[train_indices, ]  
-  
-# Exclude the training indices to create the test set
-credit_test &lt;- credit[-train_indices, ]  </code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Train a classification tree model</p>
 <p>In this exercise, you will train a model on the newly created training set and print the model object.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBUcmFpbiB0aGUgbW9kZWwgKHRvIHByZWRpY3QgJ2RlZmF1bHQnKVxuY3JlZGl0X21vZGVsIDwtIHJwYXJ0KGZvcm11bGEgPSBkZWZhdWx0IH4gLiwgXG4gICAgICAgICAgICAgICAgICAgICAgZGF0YSA9IGNyZWRpdF90cmFpbiwgXG4gICAgICAgICAgICAgICAgICAgICAgbWV0aG9kID0gXCJjbGFzc1wiKVxuXG4jIExvb2sgYXQgdGhlIG1vZGVsIG91dHB1dCAgICAgICAgICAgICAgICAgICAgICBcbnByaW50KGNyZWRpdF9tb2RlbClcbmBgYCJ9 -->
-<pre class="r"><code># Train the model (to predict 'default')
-credit_model &lt;- rpart(formula = default ~ ., 
-                      data = credit_train, 
-                      method = &quot;class&quot;)
-
-# Look at the model output                      
-print(credit_model)</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -276,16 +245,6 @@ print(credit_model)</code></pre>
 <p>As discussed in the previous video, there are a number of different metrics by which you can measure the performance of a classification model. In this exercise, we will evaluate the performance of the model using test set classification error. A confusion matrix is a convenient way to examine the per-class error rates for all classes at once.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBHZW5lcmF0ZSBwcmVkaWN0ZWQgY2xhc3NlcyB1c2luZyB0aGUgbW9kZWwgb2JqZWN0XG5jbGFzc19wcmVkaWN0aW9uIDwtIHByZWRpY3Qob2JqZWN0ID0gY3JlZGl0X21vZGVsLCAgXG4gICAgICAgICAgICAgICAgICAgICAgICBuZXdkYXRhID0gY3JlZGl0X3Rlc3QsICAgXG4gICAgICAgICAgICAgICAgICAgICAgICB0eXBlID0gXCJjbGFzc1wiKSAgXG4gICAgICAgICAgICAgICAgICAgICAgICAgICAgXG4jIENhbGN1bGF0ZSB0aGUgY29uZnVzaW9uIG1hdHJpeCBmb3IgdGhlIHRlc3Qgc2V0XG5jb25mdXNpb25NYXRyaXgoZGF0YSA9IGNsYXNzX3ByZWRpY3Rpb24sICAgICAgIFxuICAgICAgICAgICAgICAgIHJlZmVyZW5jZSA9IGNyZWRpdF90ZXN0JGRlZmF1bHQpICBcbmBgYCJ9 -->
-<pre class="r"><code># Generate predicted classes using the model object
-class_prediction &lt;- predict(object = credit_model,  
-                        newdata = credit_test,   
-                        type = &quot;class&quot;)  
-                            
-# Calculate the confusion matrix for the test set
-confusionMatrix(data = class_prediction,       
-                reference = credit_test$default)  </code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -301,35 +260,6 @@ confusionMatrix(data = class_prediction,
 <p>Train two models that use a different splitting criterion and use the validation set to choose a “best” model from this group. To do this you’ll use the parms argument of the rpart() function. This argument takes a named list that contains values of different parameters you can use to change how the model is trained. Set the parameter split to control the splitting criterion.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBUcmFpbiBhIGdpbmktYmFzZWQgbW9kZWxcbmNyZWRpdF9tb2RlbDEgPC0gcnBhcnQoZm9ybXVsYSA9IGRlZmF1bHQgfiAuLCBcbiAgICAgICAgICAgICAgICAgICAgICAgZGF0YSA9IGNyZWRpdF90cmFpbiwgXG4gICAgICAgICAgICAgICAgICAgICAgIG1ldGhvZCA9IFwiY2xhc3NcIixcbiAgICAgICAgICAgICAgICAgICAgICAgcGFybXMgPSBsaXN0KHNwbGl0ID0gXCJnaW5pXCIpKVxuXG4jIFRyYWluIGFuIGluZm9ybWF0aW9uLWJhc2VkIG1vZGVsXG5jcmVkaXRfbW9kZWwyIDwtIHJwYXJ0KGZvcm11bGEgPSBkZWZhdWx0IH4gLiwgXG4gICAgICAgICAgICAgICAgICAgICAgIGRhdGEgPSBjcmVkaXRfdHJhaW4sIFxuICAgICAgICAgICAgICAgICAgICAgICBtZXRob2QgPSBcImNsYXNzXCIsXG4gICAgICAgICAgICAgICAgICAgICAgIHBhcm1zID0gbGlzdChzcGxpdCA9IFwiaW5mb3JtYXRpb25cIikpXG5cbiMgR2VuZXJhdGUgcHJlZGljdGlvbnMgb24gdGhlIHZhbGlkYXRpb24gc2V0IHVzaW5nIHRoZSBnaW5pIG1vZGVsXG5wcmVkMSA8LSBwcmVkaWN0KG9iamVjdCA9IGNyZWRpdF9tb2RlbDEsIFxuICAgICAgICAgICAgIG5ld2RhdGEgPSBjcmVkaXRfdGVzdCxcbiAgICAgICAgICAgICB0eXBlID0gXCJjbGFzc1wiKSAgICBcblxuIyBHZW5lcmF0ZSBwcmVkaWN0aW9ucyBvbiB0aGUgdmFsaWRhdGlvbiBzZXQgdXNpbmcgdGhlIGluZm9ybWF0aW9uIG1vZGVsXG5wcmVkMiA8LSBwcmVkaWN0KG9iamVjdCA9IGNyZWRpdF9tb2RlbDIsIFxuICAgICAgICAgICAgIG5ld2RhdGEgPSBjcmVkaXRfdGVzdCxcbiAgICAgICAgICAgICB0eXBlID0gXCJjbGFzc1wiKVxuXG4jIENvbXBhcmUgY2xhc3NpZmljYXRpb24gZXJyb3JcbmNlKGFjdHVhbCA9IGNyZWRpdF90ZXN0JGRlZmF1bHQsIFxuICAgcHJlZGljdGVkID0gcHJlZDEpXG5jZShhY3R1YWwgPSBjcmVkaXRfdGVzdCRkZWZhdWx0LCBcbiAgIHByZWRpY3RlZCA9IHByZWQyKSAgXG5gYGAifQ== -->
-<pre class="r"><code># Train a gini-based model
-credit_model1 &lt;- rpart(formula = default ~ ., 
-                       data = credit_train, 
-                       method = &quot;class&quot;,
-                       parms = list(split = &quot;gini&quot;))
-
-# Train an information-based model
-credit_model2 &lt;- rpart(formula = default ~ ., 
-                       data = credit_train, 
-                       method = &quot;class&quot;,
-                       parms = list(split = &quot;information&quot;))
-
-# Generate predictions on the validation set using the gini model
-pred1 &lt;- predict(object = credit_model1, 
-             newdata = credit_test,
-             type = &quot;class&quot;)    
-
-# Generate predictions on the validation set using the information model
-pred2 &lt;- predict(object = credit_model2, 
-             newdata = credit_test,
-             type = &quot;class&quot;)
-
-# Compare classification error
-ce(actual = credit_test$default, 
-   predicted = pred1)
-ce(actual = credit_test$default, 
-   predicted = pred2)  </code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>CE stands for classification error, which is the fraction of incorrectly classified instances. Lower CE indicates that the credit model using the information index had fewer errors in classification.</p>
@@ -350,39 +280,12 @@ ce(actual = credit_test$default,
 <p>After the initial exploration, let’s split the data into training, validation, test sets. In this chapter, we will introduce the idea of a validation set, which can be used to select a “best” model from a set of competing models.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBMb29rL2V4cGxvcmUgdGhlIGRhdGFcbnN0cihncmFkZSlcblxuIyBSYW5kb21seSBhc3NpZ24gcm93cyB0byBpZHMgKDEvMi8zIHJlcHJlc2VudHMgdHJhaW4vdmFsaWQvdGVzdClcbiMgVGhpcyB3aWxsIGdlbmVyYXRlIGEgdmVjdG9yIG9mIGlkcyBvZiBsZW5ndGggZXF1YWwgdG8gdGhlIG51bWJlciBvZiByb3dzXG4jIFRoZSB0cmFpbi92YWxpZC90ZXN0IHNwbGl0IHdpbGwgYmUgYXBwcm94aW1hdGVseSA3MCUgLyAxNSUgLyAxNSUgXG5zZXQuc2VlZCgxKVxuYXNzaWdubWVudCA8LSBzYW1wbGUoMTozLCBzaXplID0gbnJvdyhncmFkZSksIHByb2IgPSBjKDAuNywwLjE1LDAuMTUpLCByZXBsYWNlID0gVFJVRSlcblxuIyBDcmVhdGUgYSB0cmFpbiwgdmFsaWRhdGlvbiBhbmQgdGVzdHMgZnJvbSB0aGUgb3JpZ2luYWwgZGF0YSBmcmFtZSBcbmdyYWRlX3RyYWluIDwtIGdyYWRlW2Fzc2lnbm1lbnQgPT0gMSwgXSAgICAjIHN1YnNldCB0aGUgZ3JhZGUgZGF0YSBmcmFtZSB0byB0cmFpbmluZyBpbmRpY2VzIG9ubHlcbmdyYWRlX3ZhbGlkIDwtIGdyYWRlW2Fzc2lnbm1lbnQgPT0gMiwgXSAgIyBzdWJzZXQgdGhlIGdyYWRlIGRhdGEgZnJhbWUgdG8gdmFsaWRhdGlvbiBpbmRpY2VzIG9ubHlcbmdyYWRlX3Rlc3QgPC0gZ3JhZGVbYXNzaWdubWVudCA9PSAzLCBdICAgIyBzdWJzZXQgdGhlIGdyYWRlIGRhdGEgZnJhbWUgdG8gdGVzdCBpbmRpY2VzIG9ubHlcbmBgYCJ9 -->
-<pre class="r"><code># Look/explore the data
-str(grade)
-
-# Randomly assign rows to ids (1/2/3 represents train/valid/test)
-# This will generate a vector of ids of length equal to the number of rows
-# The train/valid/test split will be approximately 70% / 15% / 15% 
-set.seed(1)
-assignment &lt;- sample(1:3, size = nrow(grade), prob = c(0.7,0.15,0.15), replace = TRUE)
-
-# Create a train, validation and tests from the original data frame 
-grade_train &lt;- grade[assignment == 1, ]    # subset the grade data frame to training indices only
-grade_valid &lt;- grade[assignment == 2, ]  # subset the grade data frame to validation indices only
-grade_test &lt;- grade[assignment == 3, ]   # subset the grade data frame to test indices only</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Train a regression tree model</p>
 <p>In this exercise, we will use the grade_train dataset to fit a regression tree using rpart() and visualize it using rpart.plot(). A regression tree plot will look identical to a classification tree plot, with the exception that there will be numeric values in the leaf nodes instead of predicted classes.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBUcmFpbiB0aGUgbW9kZWxcbmdyYWRlX21vZGVsIDwtIHJwYXJ0KGZvcm11bGEgPSBmaW5hbF9ncmFkZSB+IC4sIFxuICAgICAgICAgICAgICAgICAgICAgZGF0YSA9IGdyYWRlX3RyYWluLCBcbiAgICAgICAgICAgICAgICAgICAgIG1ldGhvZCA9IFwiYW5vdmFcIilcblxuIyBMb29rIGF0IHRoZSBtb2RlbCBvdXRwdXQgICAgICAgICAgICAgICAgICAgICAgXG5wcmludChncmFkZV9tb2RlbClcblxuIyBQbG90IHRoZSB0cmVlIG1vZGVsXG5ycGFydC5wbG90KHggPSBncmFkZV9tb2RlbCwgeWVzbm8gPSAyLCB0eXBlID0gMCwgZXh0cmEgPSAwKVxuYGBgIn0= -->
-<pre class="r"><code># Train the model
-grade_model &lt;- rpart(formula = final_grade ~ ., 
-                     data = grade_train, 
-                     method = &quot;anova&quot;)
-
-# Look at the model output                      
-print(grade_model)
-
-# Plot the tree model
-rpart.plot(x = grade_model, yesno = 2, type = 0, extra = 0)</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -398,15 +301,6 @@ rpart.plot(x = grade_model, yesno = 2, type = 0, extra = 0)</code></pre>
 <p>Predict the final grade for all students in the test set. The grade is on a 0-20 scale. Evaluate the model based on test set RMSE (Root Mean Squared Error). RMSE tells us approximately how far away our predictions are from the true values.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
-<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBHZW5lcmF0ZSBwcmVkaWN0aW9ucyBvbiBhIHRlc3Qgc2V0XG5wcmVkIDwtIHByZWRpY3Qob2JqZWN0ID0gZ3JhZGVfbW9kZWwsICAgIyBtb2RlbCBvYmplY3QgXG4gICAgICAgICAgICAgICAgbmV3ZGF0YSA9IGdyYWRlX3Rlc3QpICAjIHRlc3QgZGF0YXNldFxuXG4jIENvbXB1dGUgdGhlIFJNU0VcbnJtc2UoYWN0dWFsID0gZ3JhZGVfdGVzdCRmaW5hbF9ncmFkZSwgXG4gICAgIHByZWRpY3RlZCA9IHByZWQpXG5gYGAifQ== -->
-<pre class="r"><code># Generate predictions on a test set
-pred &lt;- predict(object = grade_model,   # model object 
-                newdata = grade_test)  # test dataset
-
-# Compute the RMSE
-rmse(actual = grade_test$final_grade, 
-     predicted = pred)</code></pre>
-<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 </div>
@@ -456,6 +350,20 @@ rpart.plot(x = grade_model_opt, yesno = 2, type = 0, extra = 0)</code></pre>
 <p>Use expand.grid() to generate a grid of maxdepth and minsplit values.</p>
 <!-- rnb-text-end -->
 <!-- rnb-chunk-begin -->
+<!-- rnb-source-begin eyJkYXRhIjoiYGBgclxuIyBFc3RhYmxpc2ggYSBsaXN0IG9mIHBvc3NpYmxlIHZhbHVlcyBmb3IgbWluc3BsaXQgYW5kIG1heGRlcHRoXG5taW5zcGxpdCA8LSBzZXEoMSwgNCwgMSlcbm1heGRlcHRoIDwtIHNlcSgxLCA2LCAxKVxuXG4jIENyZWF0ZSBhIGRhdGEgZnJhbWUgY29udGFpbmluZyBhbGwgY29tYmluYXRpb25zIFxuaHlwZXJfZ3JpZCA8LSBleHBhbmQuZ3JpZChtaW5zcGxpdCA9IG1pbnNwbGl0LCBtYXhkZXB0aCA9IG1heGRlcHRoKVxuXG4jIENoZWNrIG91dCB0aGUgZ3JpZFxuaGVhZChoeXBlcl9ncmlkKVxuXG4jIFByaW50IHRoZSBudW1iZXIgb2YgZ3JpZCBjb21iaW5hdGlvbnNcbm5yb3coaHlwZXJfZ3JpZClcbmBgYCJ9 -->
+<pre class="r"><code># Establish a list of possible values for minsplit and maxdepth
+minsplit &lt;- seq(1, 4, 1)
+maxdepth &lt;- seq(1, 6, 1)
+
+# Create a data frame containing all combinations 
+hyper_grid &lt;- expand.grid(minsplit = minsplit, maxdepth = maxdepth)
+
+# Check out the grid
+head(hyper_grid)
+
+# Print the number of grid combinations
+nrow(hyper_grid)</code></pre>
+<!-- rnb-source-end -->
 <!-- rnb-chunk-end -->
 <!-- rnb-text-begin -->
 <p>Generate a grid of models</p>
