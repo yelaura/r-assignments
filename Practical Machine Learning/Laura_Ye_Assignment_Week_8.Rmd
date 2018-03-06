@@ -49,39 +49,44 @@ table(bank_data$nr.employed)
 The column also only has one value, so values from this column would most likely not be useful for our model. This column will be removed.
 
 ```{r}
-bank_data_clean <- bank_data %>% select(-nr.employed)
+bank_data <- bank_data %>% select(-nr.employed)
 ```
 
-#### "Unknown" Data
+### Factorize Categorical Variables
 
-This data set also has a lot of values that are "unknown" which should be treated as NAs.
-
-Let's see how many values are "unknown" after replacing these values with NAs.
+There are some columns that need to be converted to a factor so that the models can recognize them as categorical variables.
 
 ```{r}
-bank_data_clean[bank_data_clean == "unknown"] <- NA
+# list of column names to factorize
+(cat_cols <- c("job", "marital", "education", "default", "housing", "loan", "contact", "month", "day_of_week", "poutcome", "y"))
 
-print (paste0("Number of NAs in the whole data set: ", sum(is.na(bank_data_clean))))
-
-print ("Columns with NAs:")
-
-for (i in names(bank_data_clean)){
-  if(sum(is.na(bank_data_clean %>% select(i))) != 0){
-    print (paste0("% of NAs in ", i, " column: ", round(sum(is.na(bank_data_clean %>% select(i)))/nrow(bank_data_clean)*100, 1)))
-  }
+for (i in cat_cols){
+  bank_data[[i]] <- factor(bank_data[[i]])
 }
 ```
 
-The NAs/Unknowns are congregated in the job, marital, education, default, housing, and loan columns.
 
-#### PreProcess Response Variable
+### Near-zero variance and Zero variance
 
-Let's convert the dependent variable, y, to 0s and 1s.
+We will now use caret's preProcess function to remove near-zero variance and zero variance explanatory variables.
 
 ```{r}
-# Convert y to 0 or 1 as a factor since there are only 2 possibilities.
-bank_data_clean$y <- ifelse(bank_data_clean$y == "yes", 1, 0)
-bank_data_clean$y <- factor(bank_data_clean$y)
+library(caret)
+prep_bank_data <- preProcess(bank_data, method=c("zv", "nzv"))
+bank_data_clean <- predict(prep_bank_data, bank_data)
+```
+
+Comparing the dimensions of the original data set with the preProcessed data set, it looks like one column was removed.
+
+```{r}
+dim(bank_data)
+dim(bank_data_clean)
+```
+
+Which column was removed?
+
+```{r}
+setdiff(names(bank_data), names(bank_data_clean))
 ```
 
 ### Split Data
@@ -138,6 +143,8 @@ This gives us a nice initial classification tree which is what we'll use to tune
 
 The three hyperparameters we'll take a look at will be cp, minsplit, and max depth.
 
+#### cp
+
 First, let's take a look at what the ideal value for cp should be. 
 
 ```{r}
@@ -145,6 +152,8 @@ First, let's take a look at what the ideal value for cp should be.
 ```
 
 Since the lowest x-val relative error is already at the lowest and default cp value, this model does not need to be pruned based on cp value.
+
+#### minsplit and maxdepth
 
 Next, we will use grid search with minsplit and maxdepth to further tune this model.
 
@@ -157,7 +166,6 @@ maxdepth <- seq(1, 30, 1)
 hyper_grid <- expand.grid(minsplit = minsplit, maxdepth = maxdepth)
 
 print(paste0("Total combinations: ", nrow(hyper_grid)))
-head(hyper_grid)
 ```
 
 Next, let's define a function that will return a list of classification tree models based on the parameters in our hyperparameter grid.
@@ -213,7 +221,7 @@ AUC for these models are very similar. 10% of the models have the better perform
 
 ```{r}
 auc_max <- max(class_metric)
-(hyper_grid[class_metric==auc_max,])
+head(hyper_grid[class_metric==auc_max,])
 ```
 
 From the AUC value, a maxdepth of 3 is ideal and value of minsplit is not significant, so we will keep that at the default value.
@@ -237,17 +245,70 @@ class_pred <- predict(class_final, test, type="vector")
 
 For the random forest model, we will train a randomForest model using the default values, and then tune the randomForest model using mtry, nodesize, and sampsize.
 
-Let's start by tuning a randomForest model using the default parameter values. We will use caret to preProcess the 
+Let's start by generating a randomForest model using the default parameter values.
 
 ```{r}
 set.seed(620)
-rf_model <- train(
-  x = train %>% select(-y), 
-  y = as.matrix(train %>% select(y)),
-  method = "rf",
-  preProcess = "knnImpute"
-)
+
+library(randomForest)
+rf_model <- randomForest(y~., train)
+
+print(rf_model)
 ```
 
+### Tuning the model
+
+The initial randomForest model was not bad, but let's try to tune using mtry, nodesize, and sampsize. Note that in this section, the validation test set will be used to select the best hyperparameters.
+
+To tune these parameters, we will use a hyperparameter grid and extract the OOB error for each model. The parameters for the model with the lowest OOB error will be used for the final evaluation against the test set.
+
+```{r}
+# Establish a list of possible values for mtry, nodesize and sampsize
+mtry <- seq(2,8,2)
+nodesize <- seq(2, 8, 2)
+sampsize <- nrow(valid) * c(0.7, 0.8)
+
+# Create a data frame containing all combinations 
+hyper_grid <- expand.grid(mtry=mtry, nodesize = nodesize, sampsize = sampsize)
+
+# Create an empty vector to store OOB error values
+oob_err <- c()
+
+# Write a loop over the rows of hyper_grid to train the grid of models
+for (i in 1:nrow(hyper_grid)) {
+
+    # Train a Random Forest model
+    model <- randomForest(formula = y ~ ., 
+                          data = valid,
+                          mtry = hyper_grid$mtry[i],
+                          nodesize = hyper_grid$nodesize[i],
+                          sampsize = hyper_grid$sampsize[i])
+                          
+    # Store OOB error for the model                      
+    oob_err[i] <- model$err.rate[nrow(model$err.rate), "OOB"]
+}
+
+# Identify optimal set of hyperparmeters based on OOB error
+opt_i <- which.min(oob_err)
+print(hyper_grid[opt_i,])
+```
+
+### Final Evaluation
+
+Now that we have the ideal parameters for mtry, nodesize, and sampsize, let's put this together in a model and evaluate the AUC for this model.
+
+```{r}
+rf_final <- randomForest(formula = y ~ ., 
+                          data = test,
+                          mtry = hyper_grid$mtry[opt_i],
+                          nodesize = hyper_grid$nodesize[opt_i],
+                          sampsize = hyper_grid$sampsize[opt_i])
+
+print(rf_model)
+
+rf_pred <- predict(rf_final, test, type="response")
+
+(rf_auc <- auc(test$y, rf_pred))
+```
 
 ## Summary
