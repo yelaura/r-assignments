@@ -6,7 +6,17 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+
+# Load required packages
+library(tidyverse)
+library(ModelMetrics)
+library(caret)
+library(rpart)
+library(rpart.plot)
+library(randomForest)
+library(caTools)
+library(pROC)
 ```
 
 ## Goals and Purpose
@@ -18,7 +28,6 @@ In this assignment, we will use a banking telemarketing data set (Title: Bank Ma
 To take an initial look at the data set, let's load it into our workspace.
 
 ```{r}
-library(tidyverse)
 bank_data <- read_delim("bank-additional-full.csv", ";")
 dim(bank_data)
 names(bank_data)
@@ -71,7 +80,6 @@ for (i in cat_cols){
 We will now use caret's preProcess function to remove near-zero variance and zero variance explanatory variables.
 
 ```{r}
-library(caret)
 prep_bank_data <- preProcess(bank_data, method=c("zv", "nzv"))
 bank_data_clean <- predict(prep_bank_data, bank_data)
 ```
@@ -87,7 +95,10 @@ Which column was removed?
 
 ```{r}
 setdiff(names(bank_data), names(bank_data_clean))
+summary(bank_data$pdays)
 ```
+
+Since this column's only value was 999, the predictor variable has zero variance and hence, is not useful to this analysis.
 
 ### Split Data
 
@@ -102,20 +113,31 @@ valid <- bank_data_clean[assignment == 2, ]
 test <- bank_data_clean[assignment == 3, ]
 
 print("Percentage of rows in training set:")
-nrow(train)/nrow(bank_data_clean)
+round(nrow(train)/nrow(bank_data_clean)*100, 2)
 ```
 
 Now that we have a train, validation, and test set, we are ready to build three different types of models to compare and evaluate their performance.
 
 ## Logistic Regression
 
-With logistic regression,
+For logistic regression, we will use the training set to fit a general logistic regression model and then evaluate using the test set. For logistic regression, we will not be using the validation set since there are no parameters to tune.
 
-- always start with median imputation; also try knn if data not missing at random
-- for linear models: center and scale
-- for linear models: try pca and spatialsign
-- tree based dont need preprocessing; usually median imputation is enough
-- nzv and zv to remove zero variance columns
+Let's fit a logistic regression model.
+
+```{r}
+# Generate glm model using train set
+glm_final <- glm(y~., train, family=binomial)
+
+# Predict new values using test set
+glm_pred <- predict(glm_final, newdata=test, type="response")
+
+# Convert response values to yes and no
+glm_pred <- factor(ifelse(glm_pred > 0.5, "yes", "no"))
+
+(glm_auc <- ModelMetrics::auc(test$y, glm_pred))
+```
+
+The rest of the model metrics will be calculated in the last section, Summary, as a comparison with the other models.
 
 ## Decision Trees (with hyperparameter optimization)
 
@@ -124,15 +146,10 @@ For the decision tree, we will train an initial classification tree model, and t
 Let's train a basic classification tree model.
 
 ```{r}
-library(rpart)
-library(rpart.plot)
-
 set.seed(620)
 class_tree_model <- rpart(formula = y ~ .,
                           data = train,
                           method = "class")
-
-print(class_tree_model)
 
 rpart.plot(class_tree_model, yesno = 2, type = 0, extra = 0)
 ```
@@ -189,18 +206,16 @@ class_tree_model <- function (parameters){
 
 Using this function, I just need to pass the hyperparameter grid to generate the list of models that we're comparing.
 
-```{r}
+```{r, cache=TRUE}
 tuning_models <- class_tree_model(hyper_grid)
 print(length(tuning_models))
 ```
 
-The resulting list should contain 360 models, with which we can evaluate using the validation set to determine the best combination of hyperparameters. To evaluate, we will use AUC so that the model with the highest AUC will be chosen.
+The resulting list should contain 600 models, with which we can evaluate using the validation set to determine the best combination of hyperparameters. To evaluate, we will use AUC so that the model with the highest AUC will be chosen.
 
 Like how the list of models was generated using a function, I will now also use a function that takes in a list of models, and the function name of the metric used to evaluate these models.
 
-```{r}
-library(ModelMetrics)
-
+```{r, cache=TRUE}
 compare_models <- function(list_of_models, metric_fun){
   results <- c()
   
@@ -212,7 +227,7 @@ compare_models <- function(list_of_models, metric_fun){
   return(results)
 }
 
-class_metric <- compare_models(tuning_models, auc)
+class_metric <- compare_models(tuning_models, ModelMetrics::auc)
 
 table(class_metric)
 ```
@@ -236,9 +251,10 @@ class_final <- rpart(formula = y ~ .,
                      method = "class",
                      maxdepth = 3)
 
-class_pred <- predict(class_final, test, type="vector")
+class_pred <- factor(predict(class_final, test, type="vector"))
+levels(class_pred) <- c("no", "yes")
 
-(class_auc <- auc(test$y, class_pred))
+(class_auc <- ModelMetrics::auc(test$y, class_pred))
 ```
 
 ## Random Forest
@@ -250,7 +266,6 @@ Let's start by generating a randomForest model using the default parameter value
 ```{r}
 set.seed(620)
 
-library(randomForest)
 rf_model <- randomForest(y~., train)
 
 print(rf_model)
@@ -262,7 +277,7 @@ The initial randomForest model was not bad, but let's try to tune using mtry, no
 
 To tune these parameters, we will use a hyperparameter grid and extract the OOB error for each model. The parameters for the model with the lowest OOB error will be used for the final evaluation against the test set.
 
-```{r}
+```{r, cache=TRUE}
 # Establish a list of possible values for mtry, nodesize and sampsize
 mtry <- seq(2,8,2)
 nodesize <- seq(2, 8, 2)
@@ -308,7 +323,56 @@ print(rf_model)
 
 rf_pred <- predict(rf_final, test, type="response")
 
-(rf_auc <- auc(test$y, rf_pred))
+(rf_auc <- ModelMetrics::auc(test$y, rf_pred))
 ```
 
 ## Summary
+
+In this section, all three models will be compared to each other using confusionMatrix, ROC, and AUC.
+
+Since we've been using AUC to evaluate and compare models while tuning parameters, let's take a look at this metric first.
+
+```{r}
+(results <- data.frame(modelname=c("Logistic Regression", "Classification Tree", "Random Forest"), auc=c(glm_auc, class_auc, rf_auc)))
+```
+
+Let's also take a look at the confusionMatrix and take a look at the accuracy of each model.
+
+```{r}
+glm_cm <- caret::confusionMatrix(glm_pred, test$y)
+class_cm <- caret::confusionMatrix(class_pred, test$y)
+rf_cm <- caret::confusionMatrix(rf_pred, test$y)
+
+results$accuracy <- c(glm_cm$overall['Accuracy'], class_cm$overall['Accuracy'], rf_cm$overall['Accuracy'])
+print(results)
+```
+
+From AUC and Accuracy, the random forest model is the most promising since the model yielded the highest values for these metrics.
+
+Finally, let's take a look at the ROC plots for each model.
+
+```{r}
+plot.roc(as.numeric(class_pred),as.numeric(test$y), plotROC = TRUE, col="green")
+plot.roc(as.numeric(glm_pred),as.numeric(test$y), plotROC = TRUE, add=TRUE, col="blue")
+plot.roc(as.numeric(rf_pred),as.numeric(test$y),plotROC = TRUE, add=TRUE, col="red")
+plot.roc(as.numeric(test$y),as.numeric(test$y),plotROC = TRUE, add=TRUE, col="black")
+legend("bottomright", legend=c("Classification Tree", "Logistic Regression", "Random Forest", "Response Variable"),
+       col=c("green", "blue", "red", "black"), lwd=2)
+```
+
+The ROC Plot visually confirms that Random Forest model yields the results that are closest to the Response Variable curve, which is just the response variable in the test set plotted against itself in the ROC Plot.
+
+### Conclusion
+
+The random forest model, after tuning for mtry, nodesize, and sampsize, yielded the model with the best results. The accuracy and AUC were the highest of the three models, and the ROC curve was the closest to the ideal curve.
+
+Here's a summary of the Random Forest's performance.
+
+```{r}
+print(results[results$modelname=="Random Forest", ])
+
+plot.roc(as.numeric(rf_pred),as.numeric(test$y),plotROC = TRUE, col="red")
+plot.roc(as.numeric(test$y),as.numeric(test$y),plotROC = TRUE, add=TRUE, col="black")
+legend("bottomright", legend=c("Random Forest", "Response Variable"),
+       col=c("red", "black"), lwd=2)
+```
