@@ -517,3 +517,551 @@ rw_drift <- cumsum(wn_drift)
 plot.ts(cbind(white_noise, random_walk, wn_drift, rw_drift))
 ```
 
+# Scatterplots
+
+ts.plot(cbind(A, B)) to plot 2 data sets over time
+plot(A, B) creates a scatterplot of the two data sets
+ts.plot(cbind(diff(log(A)), diff(log(B)))) plots log returns for data set A and B
+- centered closer to 0
+plot(diff(log(A)), diff(log(B))) plots scatterplot of the log returns
+
+## Exercises
+
+Asset prices vs. asset returns
+The goal of investing is to make a profit. The revenue or loss from investing depends on the amount invested and changes in prices, and high revenue relative to the size of an investment is of central interest. This is what financial asset returns measure, changes in price as a fraction of the initial price over a given time horizon, for example, one business day.
+
+Let's again consider the eu_stocks dataset. This dataset reports index values, which we can regard as prices. The indices are not investable assets themselves, but there are many investable financial assets that closely track major market indices, including mutual funds and exchange traded funds.
+
+Log returns, also called continuously compounded returns, are also commonly used in financial time series analysis. They are the log of gross returns, or equivalently, the changes (or first differences) in the logarithm of prices.
+
+The change in appearance between daily prices and daily returns is typically substantial, while the difference between daily returns and log returns is usually small. As you'll see later, one advantage of using log returns is that calculating multi-period returns from individual periods is greatly simplified - you just add them together!
+
+In this exercise, you'll further explore the eu_stocks dataset, including plotting prices, converting prices to (net) returns, and converting prices to log returns.
+
+```{r}
+# Plot eu_stocks
+plot(eu_stocks)
+
+# Use this code to convert prices to returns
+returns <- eu_stocks[-1,] / eu_stocks[-1860,] - 1
+
+# Convert returns to ts
+returns <- ts(returns, start = c(1991, 130), frequency = 260)
+
+# Plot returns
+plot(returns)
+
+# Use this code to convert prices to log returns
+logreturns <- diff(log(eu_stocks))
+
+# Plot logreturns
+plot(logreturns)
+```
+
+Characteristics of financial time series
+Daily financial asset returns typically share many characteristics. Returns over one day are typically small, and their average is close to zero. At the same time, their variances and standard deviations can be relatively large. Over the course of a few years, several very large returns (in magnitude) are typically observed. These relative outliers happen on only a handful of days, but they account for the most substantial movements in asset prices. Because of these extreme returns, the distribution of daily asset returns is not normal, but heavy-tailed, and sometimes skewed. In general, individual stock returns typically have even greater variability and more extreme observations than index returns.
+
+In this exercise, you'll work with the eu_percentreturns dataset, which is the percentage returns calculated from your eu_stocks data. For each of the four indices contained in your data, you'll calculate the sample mean, variance, and standard deviation.
+
+Notice that the average daily return is about 0, while the standard deviation is about 1 percentage point. Also apply the hist() and qqnorm() functions to make histograms and normal quantile plots, respectively, for each of the indices.
+
+```{r}
+# Generate means from eu_percentreturns
+colMeans(eu_percentreturns)
+
+# Use apply to calculate sample variance from eu_percentreturns
+apply(eu_percentreturns, MARGIN = 2, FUN = var)
+
+# Use apply to calculate standard deviation from eu_percentreturns
+apply(eu_percentreturns, MARGIN = 2, FUN = sd)
+
+# Display a histogram of percent returns for each index
+par(mfrow = c(2,2))
+apply(eu_percentreturns, MARGIN = 2, FUN = hist, main = "", xlab = "Percentage Return")
+
+# Display normal quantile plots of percent returns for each index
+par(mfrow = c(2,2))
+apply(eu_percentreturns, MARGIN = 2, FUN = qqnorm, main = "")
+qqline(eu_percentreturns)
+```
+
+> Note that the vast majority of returns are near zero, but some daily returns are greater than 5 percentage points in magnitude. Similarly, note the clear departure from normality, especially in the tails of the distributions, as evident in the normal quantile plots.
+
+Plotting pairs of data
+Time series data is often presented in a time series plot. For example, the index values from the eu_stocks dataset are shown in the adjoining figure. Recall, eu_stocks contains daily closing prices from 1991-1998 for the major stock indices in Germany (DAX), Switzerland (SMI), France (CAC), and the UK (FTSE).
+
+It is also useful to examine the bivariate relationship between pairs of time series. In this exercise we will consider the contemporaneous relationship, that is matching observations that occur at the same time, between pairs of index values as well as their log returns. The plot(a, b) function will produce a scatterplot when two time series names a and b are given as input.
+
+To simultaneously make scatterplots for all pairs of several assets the pairs() function can be applied to produce a scatterplot matrix. When shared time trends are present in prices or index values it is common to instead compare their returns or log returns.
+
+In this exercise, you'll practice these skills on the eu_stocks data. Because the DAX and FTSE returns have similar time coverage, you can easily make a scatterplot of these indices. Note that the normal distribution has elliptical contours of equal probability, and pairs of data drawn from the multivariate normal distribution form a roughly elliptically shaped point cloud. Do any of the pairs in the scatterplot matrices exhibit this pattern, before or after log transformation?
+
+```{r}
+# Make a scatterplot of DAX and FTSE
+plot(DAX, FTSE)
+
+# Make a scatterplot matrix of eu_stocks
+pairs(eu_stocks)
+
+# Convert eu_stocks to log returns
+logreturns <- diff(log(eu_stocks))
+
+# Plot logreturns
+plot(logreturns)
+
+# Make a scatterplot matrix of logreturns
+pairs(logreturns)
+```
+
+# Covariance and Correlation
+
+cov - estimates covariance of A and B
+- positive value means positive correlation
+- value is scaled to the actual numbers - hard to tell whether an actual value is large or small
+
+cor - correlations between A and B
+- standardized version of covariance - does not depend on the scale of the variables
+- +1 perfectly positive linear relationship
+- -1 perfectly negative
+- 0 no linear association
+- cor = cov(A,B)/ sd(A,B)
+
+## Exercises
+
+Calculating sample covariances and correlations
+Sample covariances measure the strength of the linear relationship between matched pairs of variables. The cov() function can be used to calculate covariances for a pair of variables, or a covariance matrix when a matrix containing several variables is given as input. For the latter case, the matrix is symmetric with covariances between variables on the off-diagonal and variances of the variables along the diagonal. On the right you can see the scatterplot matrix of your logreturns data.
+
+Covariances are very important throughout finance, but they are not scale free and they can be difficult to directly interpret. Correlation is the standardized version of covariance that ranges in value from -1 to 1, where values close to 1 in magnitude indicate a strong linear relationship between pairs of variables. The cor() function can be applied to both pairs of variables as well as a matrix containing several variables, and the output is interpreted analogously.
+
+In this exercise, you'll use cov() and cor() to explore your logreturns data.
+
+```{r}
+# Use cov() with DAX_logreturns and FTSE_logreturns
+cov(DAX_logreturns, FTSE_logreturns)
+
+# Use cov() with logreturns
+cov(logreturns)
+
+# Use cor() with DAX_logreturns and FTSE_logreturns
+cor(DAX_logreturns, FTSE_logreturns)
+
+# Use cor() with logreturns
+cor(logreturns)
+```
+
+The cov() and cor() commands provide a simple and intuitive output for comparing the relationships between your indices, especially when a scatterplot matrix is difficult to interpret.
+
+# Autocorrelation
+
+Study how each time series is related to recent past
+- greater correlation means easier to predict
+
+Lag 1 autocorrelation is correlation of the previous data point (yesterday) with the current data point (today)
+
+Lag 2 autocorrelation is correlation of the previous 2nd data point (two days earlier) with the current data point (today)
+
+Autocorrelation Function (ACF)
+acf(time_series, lag.max = 2, plot=FALSE)
+outputs a table of lag vs correlation
+
+acf plot - acf function - plot=TRUE
+Result is time lag vs ACF
+when is the autocorrelation the greatest out of 10 lags?
+
+## Exercises
+
+Calculating autocorrelations
+Autocorrelations or lagged correlations are used to assess whether a time series is dependent on its past. For a time series x of length n we consider the n-1 pairs of observations one time unit apart. The first such pair is (x[2],x[1]), and the next is (x[3],x[2]). Each such pair is of the form (x[t],x[t-1]) where t is the observation index, which we vary from 2 to n in this case. The lag-1 autocorrelation of x can be estimated as the sample correlation of these (x[t], x[t-1]) pairs.
+
+In general, we can manually create these pairs of observations. First, create two vectors, x_t0 and x_t1, each with length n-1, such that the rows correspond to (x[t], x[t-1]) pairs. Then apply the cor() function to estimate the lag-1 autocorrelation.
+
+Luckily, the acf() command provides a shortcut. Applying acf(..., lag.max = 1, plot = FALSE) to a series x automatically calculates the lag-1 autocorrelation.
+
+Finally, note that the two estimates differ slightly as they use slightly different scalings in their calculation of sample covariance, 1/(n-1) versus 1/n. Although the latter would provide a biased estimate, it is preferred in time series analysis, and the resulting autocorrelation estimates only differ by a factor of (n-1)/n.
+
+In this exercise, you'll practice both the manual and automatic calculation of a lag-1 autocorrelation. The time series x and its length n (150) have already been loaded. The series is shown in the plot on the right.
+
+```{r}
+# Define x_t0 as x[-1]
+x_t0 <- x[-1]
+
+# Define x_t1 as x[-n]
+x_t1 <- x[-n]
+
+# Confirm that x_t0 and x_t1 are (x[t], x[t-1]) pairs  
+head(cbind(x_t0, x_t1))
+  
+# Plot x_t0 and x_t1
+plot(x_t0, x_t1)
+
+# View the correlation between x_t0 and x_t1
+cor(x_t0, x_t1)
+
+# Use acf with x
+acf(x, lag.max = 1, plot = FALSE)
+
+# Confirm that difference factor is (n-1)/n
+cor(x_t1, x_t0) * (n-1)/n
+```
+
+The autocorrelation function
+Autocorrelations can be estimated at many lags to better assess how a time series relates to its past. We are typically most interested in how a series relates to its most recent past.
+
+The acf(..., lag.max = ..., plot = FALSE) function will estimate all autocorrelations from 0, 1, 2,..., up to the value specified by the argument lag.max. In the previous exercise, you focused on the lag-1 autocorrelation by setting the lag.max argument to 1.
+
+In this exercise, you'll explore some further applications of the acf() command. Once again, the time series x has been preloaded for you and is shown in the plot on the right.
+
+```{r}
+# Generate ACF estimates for x up to lag-10
+acf(x, lag.max = 10, plot = FALSE)
+```
+
+Visualizing the autocorrelation function
+Estimating the autocorrelation function (ACF) at many lags allows us to assess how a time series x relates to its past. The numeric estimates are important for detailed calculations, but it is also useful to visualize the ACF as a function of the lag.
+
+In fact, the acf() command produces a figure by default. It also makes a default choice for lag.max, the maximum number of lags to be displayed.
+
+Three time series x, y, and z have been loaded into your R environment and are plotted on the right. The time series x shows strong persistence, meaning the current value is closely relatively to those that proceed it. The time series y shows a periodic pattern with a cycle length of approximately four observations, meaning the current value is relatively close to the observation four before it. The time series z does not exhibit any clear pattern.
+
+In this exercise, you'll plot an estimated autocorrelation function for each time series. In the plots produced by acf(), the lag for each autocorrelation estimate is denoted on the horizontal axis and each autocorrelation estimate is indicated by the height of the vertical bars. Recall that the ACF at lag-0 is always 1.
+
+Finally, each ACF figure includes a pair of blue, horizontal, dashed lines representing lag-wise 95% confidence intervals centered at zero. These are used for determining the statistical significance of an individual autocorrelation estimate at a given lag versus a null value of zero, i.e., no autocorrelation at that lag.
+
+```{r}
+# View the ACF of x
+acf(x)
+
+# View the ACF of y
+acf(y)
+
+# View the ACF of z
+acf(z)
+```
+
+# Autoregressive Model
+
+AR Processes
+Simplest: Today's observation is regressed on yesterday's observation
+Today-Mean = slope * (Yesterday - Mean) + Noise
+
+Three parameters
+mean miu
+slope phi
+sigma^2 - variance of white noise
+
+if phi(slope)=0, y is white noise only
+slope is not zero then y depends on yesterday and also noise AKA y is autocorrelated
+large values of phi (Slope) lead to greater autocorrelation
+negative values of phi (slope) results in oscillatory time series
+
+Autocorrelations is determined by phi (slope)
+compare results of acf
+Slower decay when phi is larger
+Phi < 0 , alternating sign but decays to zero
+
+miu = 0 and phi = 1 then random walk
+which is today = yesterday + noise
+
+AR model: inflation rate
+order=c(1,0,0) = first order arima model
+output: phi, miu, sigma^2
+
+ar1 - slope of phi
+intercept - miu
+errors are available as well
+
+fitted values
+- estimates of today given yesterday
+- residuals (today - today_estimate)
+
+example code
+
+```{r}
+AR_inflation <- arima(inflation, order = c(1,0,0))
+AR_inflation_fitted <- inflation - residuals(AR_inflation)
+```
+
+Need to backtrack using residuals to find fitted values
+
+Model shows the highlights of the inflation trend
+Forecasting - prediction
+```{r}
+# 1-step ahead forecasts
+predict(AR_inflation) # to predict for the next month
+
+# h-step ahead forecasts
+predict(AR_inflation, n.ahead=6) # to predict for the next 6 months
+```
+
+## Exercises
+
+Estimate the autoregressive (AR) model
+For a given time series x we can fit the autoregressive (AR) model using the arima() command and setting order equal to c(1, 0, 0). Note for reference that an AR model is an ARIMA(1, 0, 0) model.
+
+In this exercise, you'll explore additional qualities of the AR model by practicing the arima() command on a simulated time series x as well as the AirPassengers data. This command allows you to identify the estimated slope (ar1), mean (intercept), and innovation variance (sigma^2) of the model.
+
+Both xand the AirPassengers data are preloaded in your environment. The time series x is shown in the figure on the right.
+
+```{r}
+# Fit the AR model to x
+arima(x, order = c(1,0,0))
+
+# Copy and paste the slope (ar1) estimate
+0.8575
+
+# Copy and paste the slope mean (intercept) estimate
+-0.0948
+
+# Copy and paste the innovation variance (sigma^2) estimate
+1.022
+
+# Fit the AR model to AirPassengers
+AR <- arima(AirPassengers, order=c(1,0,0))
+print(AR)
+
+# Run the following commands to plot the series and fitted values
+ts.plot(AirPassengers)
+AR_fitted <- AirPassengers - residuals(AR)
+points(AR_fitted, type = "l", col = 2, lty = 2)
+```
+
+> By fitting an AR model to the AirPassengers data, you've succesfully modeled the data in a reproducible fashion. This allows you to predict future observations based on your AR_fitted data.
+
+Simple forecasts from an estimated AR model
+Now that you've modeled your data using the arima() command, you are ready to make simple forecasts based on your model. The predict() function can be used to make forecasts from an estimated AR model. In the object generated by your predict() command, the $pred value is the forceast, and the $se value is the standard error for the forceast.
+
+To make predictions for several periods beyond the last observations, you can use the n.ahead argument in your predict() command. This argument establishes the forecast horizon (h), or the number of periods being forceast. The forecasts are made recursively from 1 to h-steps ahead from the end of the observed time series.
+
+In this exercise, you'll make simple forecasts using an AR model applied to the Nile data, which records annual observations of the flow of the River Nile from 1871 to 1970.
+
+```{r}
+# Fit an AR model to Nile
+AR_fit <-arima(Nile, order  = c(1,0,0))
+print(AR_fit)
+
+# Use predict() to make a 1-step forecast
+predict_AR <- predict(AR_fit)
+
+# Obtain the 1-step forecast using $pred[1]
+predict_AR$pred[1]
+
+# Use predict to make 1-step through 10-step forecasts
+predict(AR_fit, n.ahead = 10)
+
+# Run to plot the Nile series plus the forecast and 95% prediction intervals
+ts.plot(Nile, xlim = c(1871, 1980))
+AR_forecast <- predict(AR_fit, n.ahead = 10)$pred
+AR_forecast_se <- predict(AR_fit, n.ahead = 10)$se
+points(AR_forecast, type = "l", col = 2)
+points(AR_forecast - 2*AR_forecast_se, type = "l", col = 2, lty = 2)
+points(AR_forecast + 2*AR_forecast_se, type = "l", col = 2, lty = 2)
+```
+
+# Simple Moving Average Model
+
+Today = Mean + Noise + Slope * (Yesterday's Noise)
+
+3 parameters
+Miu (mean)
+Theta (slope)
+WN variance 
+
+if Theta = 0, Y is only WN
+if Theta != 0, Y depends on current and previous noise and y=autocorrelated
+
+Large Theta = greater autocorrelation
+Negative Theta = result in oscillation time series
+
+## Exercises
+
+Simulate the simple moving average model
+The simple moving average (MA) model is a parsimonious time series model used to account for very short-run autocorrelation. It does have a regression like form, but here each observation is regressed on the previous innovation, which is not actually observed. Like the autoregressive (AR) model, the MA model includes the white noise (WN) model as special case.
+
+As with previous models, the MA model can be simulated using the arima.sim() command by setting the model argument to list(ma = theta), where theta is a slope parameter from the interval (-1, 1). Once again, you also need to specifcy the series length using the n argument.
+
+In this exercise, you'll simulate and plot three MA models with slope parameters 0.5, 0.9, and -0.5, respectively.
+
+```{r}
+# Generate MA model with slope 0.5
+x <- arima.sim(model = list(ma=0.5), n = 100)
+
+# Generate MA model with slope 0.9
+y <- arima.sim(model = list(ma=0.9), n = 100)
+
+# Generate MA model with slope -0.5
+z <- arima.sim(model = list(ma=-0.5), n = 100)
+
+# Plot all three models together
+plot.ts(cbind(x, y, z))
+```
+
+> Note that there is some very short-run persistence for the positive slope values (x and y), and the series has a tendency to alternate when the slope value is negative (z).
+
+Estimate the autocorrelation function (ACF) for a moving average
+Now that you've simulated some MA data using the arima.sim() command, you may want to estimate the autocorrelation functions (ACF) for your data. As in the previous chapter, you can use the acf() command to generate plots of the autocorrelation in your MA data.
+
+In this exercise, you'll use acf() to estimate the ACF for three simulated MA series, x, y, and z. These series have slope parameters of 0.4, 0.9, and -0.75, respectively, and are shown in the figure on the right.
+
+```{r}
+# Calculate ACF for x
+acf(x)
+
+# Calculate ACF for y
+acf(y)
+
+# Calculate ACF for z
+acf(z)
+```
+
+> As you can see from your ACF plots, the series x has positive sample autocorrelation at the first lag, but it is approximately zero at other lags. The series y has a larger sample autocorrelation at its first lag, but it is also approximately zero for the others. The series z has an alternating pattern, and its sample autocorrelation is negative at the first lag. However, similar to the others, it is approximately zero for all higher lags.
+
+# Moving Average (MA) Model Estimation and Forecasting
+
+MA Processes: Changes in Inflation Rate
+
+```{r}
+inflation <- as.ts(Mishkin[,1])
+inflation_changes <- diff(inflation)
+ts.plot(inflation)
+ts.plot(inflation_changes)
+```
+
+Changes in the inflation rate mean reverts to zero (oscillates around 0)
+
+```{r}
+ts.plot(inflation_changes)
+acf(inflation_changes, lag.max=24)
+```
+
+acf is oscillation near zero and large at zero
+
+MA Model:
+Today = Mean + Noise + slope * Yesterday's Noise
+Order = c(0,0,1)
+
+```{r}
+MA_inflation_changes <- arima(inflation_changes, order = c(0,0,1))
+```
+
+Outputs:
+ma1 = theta (slope)
+intercept = miu
+sigma^2
+
+Fitted values
+Today_est = mean_est + slope_est * y_est
+residuals = today - today_est
+
+```{r}
+ts.plot(inflation_changes)
+MA_inflation_changes_fitted <- inflation_changes - residuals(MA_inflation_changes)
+```
+
+Forecasting
+
+```{r}
+predict(MA_inflation_changes)
+predict(MA_inflation_changes, n.ahead=6)
+```
+
+## Exercises
+
+Estimate the simple moving average model
+Now that you've simulated some MA models and calculated the ACF from these models, your next step is to fit the simple moving average (MA) model to some data using the arima() command. For a given time series x we can fit the simple moving average (MA) model using arima(..., order = c(0, 0, 1)). Note for reference that an MA model is an ARIMA(0, 0, 1) model.
+
+In this exercise, you'll practice using a preloaded time series (x, shown in the plot on the right) as well as the Nile dataset used in earlier chapters.
+
+```{r}
+# Fit the MA model to x
+arima(x, order = c(0,0,1))
+
+# Paste the slope (ma1) estimate below
+0.7928
+
+# Paste the slope mean (intercept) estimate below
+0.1589
+
+# Paste the innovation variance (sigma^2) estimate below
+0.9576
+
+# Fit the MA model to Nile
+MA <- arima(Nile, order = c(0,0,1))
+print(MA)
+
+# Plot Nile and MA_fit 
+ts.plot(Nile)
+MA_fit <- Nile - resid(MA)
+points(MA_fit, type = "l", col = 2, lty = 2)
+```
+
+> By fitting an MA model to your Nile data, you're able to capture variation in the data for future prediction. Based on the plot you've generated, does the MA model appear to be a strong fit for the Nile data? No.
+
+Simple forecasts from an estimated MA model
+Now that you've estimated a MA model with your Nile data, the next step is to do some simple forecasting with your model. As with other types of models, you can use the predict() function to make simple forecasts from your estimated MA model. Recall that the $pred value is the forecast, while the $se value is a standard error for that forecast, each of which is based on the fitted MA model.
+
+Once again, to make predictions for several periods beyond the last observation you can use the n.ahead = h argument in your call to predict(). The forecasts are made recursively from 1 to h-steps ahead from the end of the observed time series. However, note that except for the 1-step forecast, all forecasts from the MA model are equal to the estimated mean (intercept).
+
+In this exercise, you'll use the MA model derived from your Nile data to make simple forecasts about future River Nile flow levels. Your MA model from the previous exercise is available in your environment.
+
+```{r}
+# Make a 1-step forecast based on MA
+predict_MA <- predict(MA)
+
+# Obtain the 1-step forecast using $pred[1]
+predict_MA$pred[1]
+
+# Make a 1-step through 10-step forecast based on MA
+predict(MA, n.ahead=10)
+
+# Plot the Nile series plus the forecast and 95% prediction intervals
+ts.plot(Nile, xlim = c(1871, 1980))
+MA_forecasts <- predict(MA, n.ahead = 10)$pred
+MA_forecast_se <- predict(MA, n.ahead = 10)$se
+points(MA_forecasts, type = "l", col = 2)
+points(MA_forecasts - 2*MA_forecast_se, type = "l", col = 2, lty = 2)
+points(MA_forecasts + 2*MA_forecast_se, type = "l", col = 2, lty = 2)
+```
+
+> Note that the MA model can only produce a 1-step forecast. For additional forecasting periods, the predict() command simply extends the original 1-step forecast. This explains the unexpected horizontal lines after 1971.
+
+# Compare the AR and MA Models
+
+Both have epsilon and sigma^2 (white noise term).
+MA model only has autocorrelation at 1-lag
+AR model has autocorrelation at many lags
+
+Forecasting about the same except for lag 1
+
+AIC and BIC (Bayesian Information Criterion) can be used for time series analysis (lower value means better fit)
+Both are applied to  MA_inflation_changes
+> Akaike information criterion (AIC) and Bayesian information criterion (BIC)
+
+## Exercises
+
+AR vs MA models
+As you've seen, autoregressive (AR) and simple moving average (MA) are two useful approaches to modeling time series. But how can you determine whether an AR or MA model is more appropriate in practice?
+
+To determine model fit, you can measure the Akaike information criterion (AIC) and Bayesian information criterion (BIC) for each model. While the math underlying the AIC and BIC is beyond the scope of this course, for your purposes the main idea is these these indicators penalize models with more estimated parameters, to avoid overfitting, and smaller values are preferred. All factors being equal, a model that produces a lower AIC or BIC than another model is considered a better fit.
+
+> To estimate these indicators, you can use the AIC() and BIC() commands, both of which require a single argument to specify the model in question.
+
+In this exercise, you'll return to the Nile data and the AR and MA models you fitted to this data. These models and their predictions for the 1970s (AR_fit) and (MA_fit) are depicted in the plot on the right.
+
+```{r}
+# Find correlation between AR_fit and MA_fit
+cor(AR_fit, MA_fit)
+
+# Find AIC of AR
+AIC(AR)
+
+# Find AIC of MA
+AIC(MA)
+
+# Find BIC of AR
+BIC(AR)
+
+# Find BIC of MA
+BIC(MA)
+```
+
+> Although the predictions from both models are very similar (indeed, they have a correlation coeffiicent of 0.94), both the AIC and BIC indicate that the AR model is a slightly better fit for your Nile data.

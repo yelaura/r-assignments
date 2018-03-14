@@ -74,7 +74,6 @@ for (i in cat_cols){
 }
 ```
 
-
 ### Near-zero variance and Zero variance
 
 We will now use caret's preProcess function to remove near-zero variance and zero variance explanatory variables.
@@ -315,9 +314,9 @@ Now that we have the ideal parameters for mtry, nodesize, and sampsize, let's pu
 ```{r}
 rf_final <- randomForest(formula = y ~ ., 
                           data = test,
-                          mtry = hyper_grid$mtry[opt_i],
-                          nodesize = hyper_grid$nodesize[opt_i],
-                          sampsize = hyper_grid$sampsize[opt_i])
+                          mtry = 8,
+                          nodesize = 8,
+                          sampsize = .7*nrow(test))
 
 print(rf_model)
 
@@ -358,6 +357,8 @@ plot.roc(as.numeric(rf_pred),as.numeric(test$y),plotROC = TRUE, add=TRUE, col="r
 plot.roc(as.numeric(test$y),as.numeric(test$y),plotROC = TRUE, add=TRUE, col="black")
 legend("bottomright", legend=c("Classification Tree", "Logistic Regression", "Random Forest", "Response Variable"),
        col=c("green", "blue", "red", "black"), lwd=2)
+# legend("bottomright", legend=c("Classification Tree", "Random Forest", "Response Variable"),
+#        col=c("green", "red", "black"), lwd=2)
 ```
 
 The ROC Plot visually confirms that Random Forest model yields the results that are closest to the Response Variable curve, which is just the response variable in the test set plotted against itself in the ROC Plot.
