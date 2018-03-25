@@ -6,35 +6,31 @@ output: html_document
 ---
 
 ```{r setup, include=FALSE}
-knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE, comment = NA)
 
 # Load required packages
 library(tidyverse)
 library(caret)
 library(gbm)
-
-
-library(plyr)
 library(ModelMetrics)
-library(rpart)
-library(rpart.plot)
-library(randomForest)
-library(caTools)
-library(pROC)
 ```
 
 ## Problem 1
 
-Using birth_data.csv and ```caret```-based methods, build a model that determines whether a baby is at risk, i.e., needs immediate emergency care or extra medical attention immediately upon birth.
+Using birth_data.csv and caret-based methods, build a model that determines whether a baby is at risk, i.e., needs immediate emergency care or extra medical attention immediately upon birth.
 
 ### About the Data
 
 Let's take a look by loading the data into our workspace.
 
 ```{r}
+# Load data into workspace
 birth_data <- read_csv("birth_data.csv")
+
+# Number of observations and variables
 dim(birth_data)
 
+#glimpse of data set
 glimpse(birth_data)
 ```
 
@@ -71,6 +67,7 @@ To clean the data set, I will check for missing data, transform categorical vari
 Let's see if there's any missing data.
 
 ```{r}
+# Number of cells with missing data (NULLs)
 sum(is.na(birth_data))
 ```
 
@@ -78,22 +75,9 @@ Since there aren't any missing values in this data set, I will move on to the ne
 
 ##### Categorical Data
 
-Categorical variables with more than 2 levels like DPLURAL will be converted to dummy variables using one-hot-encoding. Categorical variables with only 2 levels will be converted to ones and zeros.
+Categorical variables with more than 2 levels like DPLURAL will be converted to dummy variables using one-hot-encoding. Categorical variables with only 2 levels will be factorized as is.
 
 ```{r}
-# convert true/false variables to 1,0s
-# birth_data_clean <- birth_data %>%
-#   mutate(GESTREC3 = as.integer(ifelse(GESTREC3 == ">= 37 weeks", 1, 0)),
-#          CIG_REC = as.integer(CIG_REC),
-#          ULD_MECO = as.integer(ULD_MECO),
-#          ULD_PRECIP = as.integer(ULD_PRECIP),
-#          ULD_BREECH = as.integer(ULD_BREECH),
-#          URF_DIAB = as.integer(URF_DIAB),
-#          URF_CHYPER = as.integer(URF_CHYPER),
-#          URF_PHYPER = as.integer(URF_PHYPER), 
-#          URF_ECLAM = as.integer(URF_ECLAM),
-#          atRisk = as.integer(atRisk))
-
 # convert GESTREC3 to factor
 birth_data_clean <- birth_data %>%
   mutate(GESTREC3 = factor(GESTREC3))
@@ -116,6 +100,7 @@ birth_data_clean <- birth_data_clean %>%
 The data frame is now cleaned and ready for further processing.
 
 ```{r}
+# final state of cleaned data set
 glimpse(birth_data_clean)
 ```
 
@@ -124,9 +109,11 @@ glimpse(birth_data_clean)
 Zero and Near-Zero Variance Data will be removed using caret's preProcess methods.
 
 ```{r}
+# Preprocess data for zv and nzv
 birth_data_prep <- preProcess(birth_data_clean, methods=c("zv", "nzv"))
 birth_data_cleaned <- predict(birth_data_prep, newdata=birth_data_clean)
 
+# Compare dimensions
 dim(birth_data_clean)
 dim(birth_data_cleaned)
 ```
@@ -135,19 +122,7 @@ Since the dimensions of the preProcessed data and the original data set are the 
 
 #### Splitting the Data
 
-The data is now ready to be split into a train (70%), and test (30%) set. The train set is what we will use to train models. Finally the test set is what we will use to select the best tuned model and also the best model overall.
-
-```{r}
-set.seed(3)
-assignment <- sample(1:3, size = nrow(birth_data_clean), prob = c(0.7,0.15,0.15), replace = TRUE)
-
-train <- birth_data_clean[assignment == 1, ]
-valid <- birth_data_clean[assignment == 2, ]
-test <- birth_data_clean[assignment == 3, ]
-
-print("Percentage of rows in training set:")
-round(nrow(train)/nrow(birth_data_clean)*100, 2)
-```
+The data is now ready to be split into a train (70%), and test (30%) set. The train set is what we will use to train models. The test set is what we will use to select the best tuned model and also the best model overall.
 
 ```{r}
 set.seed(3)
@@ -158,13 +133,16 @@ split <- createDataPartition(birth_data_clean$atRisk, times = 1, p=0.7, list=FAL
 # assign observations based on split
 train <- birth_data_clean[split,]
 test <- birth_data_clean[-split,]
+
+print("Percentage of rows in training set:")
+round(nrow(train)/nrow(birth_data_clean)*100, 2)
 ```
 
 ### Logistic Regression
 
 For logistic regression, we will use the training set to fit a general logistic regression model and then evaluate using the test set. For logistic regression, we will not be tuning this model since there are no parameters to tune.
 
-Let's fit a logistic regression model.
+First, fit a logistic regression model.
 
 ```{r}
 # generate glm model
@@ -193,6 +171,7 @@ Even without tuning, this model is very accurate. However AUC is low.
 ### Gradient-Boosting Machine (GBM) model
 
 For GBM model, there are four tuning parameters that we can use:
+
 * n.trees = number of boosting iterations
 * interaction.depth = max tree depth
 * shrinkage = shrinkage
@@ -201,6 +180,7 @@ For GBM model, there are four tuning parameters that we can use:
 The train function in caret using the gbm method does some parameter tuning already: 
 
 ```{r}
+# Generate gbm model
 gbm_fit <- train(atRisk ~ .,
                  data=train,
                  method="gbm",
@@ -214,16 +194,19 @@ From the model above,the ideal parameter for n.trees is 50, and the other values
 We can still test out other parameters to see what combination of tuning parameters would yield a better accuracy than the accuracy from the model above:
 
 ```{r, cache=TRUE}
+# Set parameters to test
 n.trees <- 50
 shrinkage <- seq(0.05, 0.15, 0.05)
 n.minobsinnode <- c(5, 10, 15)
 interaction.depth <- c(1, 2)
 
+# Create hyperparameter grid for grid search
 gbm_grid <- expand.grid(n.trees = n.trees,
                         shrinkage = shrinkage, 
                         n.minobsinnode = n.minobsinnode,
                         interaction.depth = interaction.depth)
 
+# Train gbm model using grid search
 gbm_fit2 <- train(atRisk ~ .,
                   data = train,
                   method = "gbm",
@@ -254,9 +237,11 @@ print("AUC is:")
 ModelMetrics::auc(test$atRisk, gbm_pred)
 ```
 
+Accuracy and AUC are slightly higher than Logistic Regression, but the improvement is not significant.
+
 ### Performance Evaluation
 
-Here is a summary of the two model performances so far:
+Here is a summary of the two model performances:
 
 Model | Accuracy | AUC
 ------|----------|------------------
@@ -271,17 +256,163 @@ Use ocdata.csv to solve Problems 2A and 2B.
 
 ### About the Data
 
+ocdata.csv contains the following fields:
+
+```{r}
+# Load data into workspace
+oc_data <- read_csv("ocdata.csv")
+
+# Get column names
+names(oc_data)
+```
+
+Income is the response variable that we'd like to predict.
+
+```{r}
+# Get dimension of data
+dim(oc_data)
+```
+
+This data set has about 102 observations.
+
 ### Preparing the Data
+
+To clean the data set, I will check for missing data, transform categorical variables, and also remove zero and near-zero variance data.
+
+#### Missing Data
+
+Let's see if there's any missing data.
+
+```{r}
+# Number of cells with missing data (NULLs)
+sum(is.na(oc_data))
+```
+
+Where are the missing data? Let's look at the number of missing data by column.
+
+```{r}
+# Number of cells of missing data by columns
+colSums(is.na(oc_data))
+```
+
+For now, the missing data will be left alone, since Problem 2A does not use the type variable to predict income.
 
 #### Cleaning the Data
 
+Let's take a look at the data types that we have.
+
+```{r}
+glimpse(oc_data)
+```
+
+To clean the data, the type variable will be converted to a factor. Other variables will be left as is.
+
+```{r}
+# Factorize type column
+oc_data_clean <- oc_data %>%
+  mutate(type = factor(oc_data$type))
+```
+
+This way, the type variable can be treated as a categorical variable.
+
+##### Zero and Near-Zero Variance Data
+
+Zero and Near-Zero Variance Data will be removed using caret's preProcess methods.
+
+```{r}
+# Preprocess data for zv and nzv
+oc_data_prep <- preProcess(oc_data_clean, methods=c("zv", "nzv"))
+oc_data_cleaned <- predict(oc_data_prep, newdata=oc_data_clean)
+
+# Compare dimensions
+dim(oc_data_clean)
+dim(oc_data_cleaned)
+```
+
+Since the dimensions of the preProcessed data and the original data set are the same, there are no columns with zero and near-zero variance data.
+
 #### Splitting the Data
+
+The data is now ready to be split into a train (70%), and test (30%) set. The train set is what we will use to train models. The test set is what we will use to select the best tuned model and also the best model overall.
+
+```{r}
+set.seed(3)
+
+# split data using caret::createDataPartition
+split <- createDataPartition(oc_data_clean$income, times = 1, p=0.7, list=FALSE)
+
+# assign observations based on split
+train <- oc_data_clean[split,]
+test <- oc_data_clean[-split,]
+
+print("Percentage of rows in training set:")
+round(nrow(train)/nrow(oc_data_clean)*100, 2)
+```
 
 ### Problem 2A
 
-Fit a *univariate* OLSR (Ordinary Least Squares Regression) model, adhering to OLSR
-assumptions, predicting **income from prestige** only
+Fit a *univariate* OLSR (Ordinary Least Squares Regression) model, adhering to OLSR assumptions, predicting **income from prestige** only.
+
+```{r}
+# Fit to univariate OLSR
+lm_fit <- lm(income ~ prestige, data=oc_data_clean)
+
+# Predict values for test
+lm_pred <- predict(lm_fit, newdata=test)
+
+# Calculate RMSE
+rmse(actual = test$income, predicted = lm_pred)
+```
+
+Plotting the linear fit against the data points for income and prestige allows us to visualize the appropriateness of the fit.
+
+```{r}
+# Plot of income vs prestige with linear fit
+ggplot(oc_data_clean, aes(x=prestige, y=income)) +
+  geom_point() +
+  geom_smooth(method="lm", se=FALSE)
+```
+
+From the plot, there is a strong linear correlation between income and prestige.
 
 ### Problem 2B
 
 Fit a model of any type we discussed in class, using all meaningful predictors of income, to obtain the "best" results, using whatever method you wish.
+
+I will be training a random forest model.
+
+```{r}
+set.seed(3)
+
+# Generate random forest model using default parameters
+rf_fit <- train(income ~ .,
+                data = oc_data_clean,
+                method="ranger",
+                na.action = na.omit)
+print(rf_fit)
+```
+
+Using the "ranger" method with caret's train function also tunes the random forest a model. The minimum RMSE value was used to choose the ideal values for mtry and splitrule.
+
+The minimum RMSE from the Random Forest model is 2508 evaluated for the train set.
+
+Now, let's evaluate the RMSE for the Random Forest model against the test set.
+
+```{r}
+# Predict values for test
+rf_pred <- predict(rf_fit, newdata=test)
+
+# Calculate RMSE
+rmse(actual = test$income, predicted = rf_pred)
+```
+
+### Comparison
+
+RMSE values for the two models from Problem 2A and 2B can be used to compare the effectiveness of the two models.
+
+Model | RMSE
+------|----------
+OLSR(income ~ prestige only) | 2601
+Random Forest | 2243
+
+The Random Forest model outperforms the OLSR model.
